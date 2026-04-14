@@ -1,0 +1,13 @@
+# zsh entrypoint managed by chezmoi
+
+export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
+export ZSH_SETUP_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}/zsh"
+export ZSH_SETUP_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}/zsh-setup"
+export ZSH_SETUP_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}/zsh"
+
+setopt prompt_subst
+setopt null_glob
+
+for file in "${ZSH_SETUP_CONFIG_HOME}"/zshrc.d/*.zsh; do
+  source "${file}"
+done

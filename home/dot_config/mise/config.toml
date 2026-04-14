@@ -1,0 +1,6 @@
+[tools]
+chezmoi = "latest"
+gh = "latest"
+helm = "latest"
+kubectl = "latest"
+starship = "latest"
