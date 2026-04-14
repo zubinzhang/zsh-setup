@@ -226,6 +226,26 @@ seed_local_overlay_from_legacy_secrets() {
 	fi
 }
 
+remove_managed_target_paths() {
+	local cfg zsh_dir
+	cfg="$(config_home)"
+	zsh_dir="${cfg}/zsh"
+
+	rm -f "${HOME}/.zshrc"
+	rm -f "${cfg}/starship.toml"
+	rm -rf "${cfg}/mise"
+	rm -rf "${zsh_dir}/zshrc.d"
+
+	if [[ -d "${zsh_dir}" && ! -d "${zsh_dir}/local" ]]; then
+		rmdir "${zsh_dir}" >/dev/null 2>&1 || true
+	fi
+
+	rm -f \
+		"${HOME}/.local/bin/zsh-setup-kube-prompt" \
+		"${HOME}/.local/bin/zsh-setup-check-updates" \
+		"${HOME}/.local/bin/zsh-setup-sync"
+}
+
 confirm_with_tty() {
 	local prompt="$1"
 	local reply=""

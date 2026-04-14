@@ -67,10 +67,10 @@ test_install_managed_flow_prompts_before_migrating_existing_config() {
 	mkdir -p "${home}/.config/mise"
 
 	printf 'legacy-zshrc\n' >"${home}/.zshrc"
-	cat >"${sandbox}/bootstrap.sh" <<'EOF'
+	cat >"${sandbox}/bootstrap.sh" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-printf 'bootstrapped\n' >"${HOME}/bootstrap.marker"
+printf 'bootstrapped\n' >"${sandbox}/bootstrap-ran.marker"
 EOF
 	chmod +x "${sandbox}/bootstrap.sh"
 
@@ -104,8 +104,10 @@ test_install_managed_flow_runs_backup_after_confirmation() {
 	cat >"${sandbox}/bootstrap.sh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
-printf 'bootstrapped\n' >"${HOME}/bootstrap.marker"
+printf 'bootstrapped\n' >"__SANDBOX__/bootstrap-ran.marker"
 EOF
+	sed -i.bak "s|__SANDBOX__|${sandbox}|g" "${sandbox}/bootstrap.sh"
+	rm -f "${sandbox}/bootstrap.sh.bak"
 	chmod +x "${sandbox}/bootstrap.sh"
 
 	HOME="${home}" \
@@ -120,7 +122,57 @@ EOF
 	assert_file_exists "${backup_dir}/dot_zshrc"
 	assert_file_exists "${backup_dir}/dot_config/mise/config.toml"
 	assert_file_exists "${home}/.config/zsh/local/secrets.zsh"
-	assert_equals "bootstrapped" "$(cat "${home}/bootstrap.marker")"
+	assert_file_exists "${sandbox}/bootstrap-ran.marker"
+}
+
+test_install_managed_flow_removes_stale_targets_before_bootstrap() {
+	local sandbox home
+	sandbox="$(mk_test_tmpdir)"
+	home="${sandbox}/home"
+	mkdir -p \
+		"${home}/.config/shell" \
+		"${home}/.config/mise" \
+		"${home}/.config/zsh/zshrc.d" \
+		"${home}/.config/zsh/local" \
+		"${home}/.local/bin"
+
+	printf 'legacy-zshrc\n' >"${home}/.zshrc"
+	printf 'legacy-starship\n' >"${home}/.config/starship.toml"
+	printf 'legacy-mise\n' >"${home}/.config/mise/config.toml"
+	printf 'legacy-module\n' >"${home}/.config/zsh/zshrc.d/10-legacy.zsh"
+	printf 'export API_TOKEN=secret\n' >"${home}/.config/shell/secrets.zsh"
+	printf 'local-keep\n' >"${home}/.config/zsh/local/keep.zsh"
+	printf '#!/usr/bin/env bash\n' >"${home}/.local/bin/zsh-setup-check-updates"
+	printf '#!/usr/bin/env bash\n' >"${home}/.local/bin/zsh-setup-sync"
+	printf '#!/usr/bin/env bash\n' >"${home}/.local/bin/zsh-setup-kube-prompt"
+	chmod +x \
+		"${home}/.local/bin/zsh-setup-check-updates" \
+		"${home}/.local/bin/zsh-setup-sync" \
+		"${home}/.local/bin/zsh-setup-kube-prompt"
+
+	cat >"${sandbox}/bootstrap.sh" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+[[ ! -e "${HOME}/.zshrc" ]]
+[[ ! -e "${HOME}/.config/starship.toml" ]]
+[[ ! -e "${HOME}/.config/mise" ]]
+[[ ! -e "${HOME}/.config/zsh/zshrc.d" ]]
+[[ ! -e "${HOME}/.local/bin/zsh-setup-check-updates" ]]
+[[ ! -e "${HOME}/.local/bin/zsh-setup-sync" ]]
+[[ ! -e "${HOME}/.local/bin/zsh-setup-kube-prompt" ]]
+[[ -e "${HOME}/.config/zsh/local/keep.zsh" ]]
+printf 'bootstrapped\n' >"${sandbox}/bootstrap-ran.marker"
+EOF
+	chmod +x "${sandbox}/bootstrap.sh"
+
+	HOME="${home}" \
+		XDG_CONFIG_HOME="${home}/.config" \
+		XDG_STATE_HOME="${home}/.local/state" \
+		ZSH_SETUP_CONFIRM_RESPONSE="y" \
+		ZSH_SETUP_BOOTSTRAP_SCRIPT="${sandbox}/bootstrap.sh" \
+		"${ROOT}/scripts/install-managed.sh"
+
+	assert_file_exists "${sandbox}/bootstrap-ran.marker"
 }
 
 test_install_managed_flow_skips_prompt_for_managed_state() {
@@ -133,10 +185,10 @@ test_install_managed_flow_skips_prompt_for_managed_state() {
 # zsh entrypoint managed by chezmoi
 export PATH="$HOME/.local/bin:$PATH"
 EOF
-	cat >"${sandbox}/bootstrap.sh" <<'EOF'
+	cat >"${sandbox}/bootstrap.sh" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-printf 'bootstrapped\n' >"${HOME}/bootstrap.marker"
+printf 'bootstrapped\n' >"${sandbox}/bootstrap-ran.marker"
 EOF
 	chmod +x "${sandbox}/bootstrap.sh"
 
@@ -149,7 +201,7 @@ EOF
 			"${ROOT}/scripts/install-managed.sh"
 	)"
 
-	assert_equals "bootstrapped" "$(cat "${home}/bootstrap.marker")"
+	assert_file_exists "${sandbox}/bootstrap-ran.marker"
 	if [[ -d "${home}/.local/state/zsh-setup/backups" ]]; then
 		fail "expected managed install to skip migration backups"
 	fi
@@ -462,7 +514,7 @@ EOF
 		"${sandbox}/install.sh"
 
 	assert_file_exists "${sandbox}/installed-repo/scripts/install-managed.sh"
-	assert_equals "bootstrapped" "$(cat "${sandbox}/home/bootstrap.marker")"
+	assert_file_exists "${sandbox}/home/bootstrap.marker"
 }
 
 test_install_supports_piped_reinstall() {
@@ -548,7 +600,7 @@ EOF
 		"${sandbox}/install.sh"
 
 	assert_file_exists "${sandbox}/installed-repo/scripts/install-managed.sh"
-	assert_equals "bootstrapped" "$(cat "${sandbox}/home/bootstrap.marker")"
+	assert_file_exists "${sandbox}/home/bootstrap.marker"
 }
 
 test_raw_rollback_wrapper_delegates_to_local_script() {
@@ -763,6 +815,7 @@ run_test "check-updates detects remote update" test_check_updates_detects_remote
 run_test "check-updates reports up-to-date state" test_check_updates_reports_up_to_date
 run_test "install-managed prompts before migrating existing config" test_install_managed_flow_prompts_before_migrating_existing_config
 run_test "install-managed runs backup after confirmation" test_install_managed_flow_runs_backup_after_confirmation
+run_test "install-managed removes stale targets before bootstrap" test_install_managed_flow_removes_stale_targets_before_bootstrap
 run_test "install-managed skips prompt for managed state" test_install_managed_flow_skips_prompt_for_managed_state
 run_test "install-managed treats partial state as unmanaged" test_install_managed_flow_treats_partial_state_as_unmanaged
 run_test "bootstrap uses apply for local home source" test_bootstrap_uses_apply_for_local_home_source
