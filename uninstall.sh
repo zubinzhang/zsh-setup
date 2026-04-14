@@ -6,32 +6,33 @@ SCRIPT_SOURCE="${BASH_SOURCE[0]:-$0}"
 ROOT=""
 INSTALL_HOME="${ZSH_SETUP_HOME:-${HOME}/.local/share/zsh-setup}"
 ARCHIVE_URL="${ZSH_SETUP_ARCHIVE_URL:-https://github.com/zubinzhang/zsh-setup/archive/refs/heads/main.tar.gz}"
+TARGET_SCRIPT="scripts/uninstall.sh"
 
 case "${SCRIPT_SOURCE}" in
-*/install.sh | install.sh)
+*/uninstall.sh | uninstall.sh)
 	if [[ -f "${SCRIPT_SOURCE}" ]]; then
 		ROOT="$(cd "$(dirname "${SCRIPT_SOURCE}")" && pwd)"
 	fi
 	;;
 esac
 
-run_local_bootstrap() {
+run_local_target() {
 	local base="$1"
 	shift
-	exec "${base}/scripts/install-managed.sh" "$@"
+	exec "${base}/${TARGET_SCRIPT}" "$@"
 }
 
-install_from_archive() {
+run_from_archive() {
 	local tmpdir archive extracted
 	tmpdir="$(mktemp -d)"
 	trap 'rm -rf "${tmpdir}"' EXIT
 
 	command -v curl >/dev/null 2>&1 || {
-		printf '[zsh-setup] ERROR: curl is required for raw install\n' >&2
+		printf '[zsh-setup] ERROR: curl is required for raw uninstall\n' >&2
 		exit 1
 	}
 	command -v tar >/dev/null 2>&1 || {
-		printf '[zsh-setup] ERROR: tar is required for raw install\n' >&2
+		printf '[zsh-setup] ERROR: tar is required for raw uninstall\n' >&2
 		exit 1
 	}
 
@@ -44,22 +45,15 @@ install_from_archive() {
 		exit 1
 	}
 
-	if [[ -e "${INSTALL_HOME}" ]]; then
-		printf '[zsh-setup] ERROR: %s already exists and is not a managed checkout\n' "${INSTALL_HOME}" >&2
-		exit 1
-	fi
-
-	mkdir -p "$(dirname "${INSTALL_HOME}")"
-	cp -R "${extracted}" "${INSTALL_HOME}"
-	exec "${INSTALL_HOME}/scripts/install-managed.sh" "$@"
+	exec "${extracted}/${TARGET_SCRIPT}" "$@"
 }
 
-if [[ -n "${ROOT}" && -x "${ROOT}/scripts/install-managed.sh" ]]; then
-	run_local_bootstrap "${ROOT}" "$@"
+if [[ -n "${ROOT}" && -x "${ROOT}/${TARGET_SCRIPT}" ]]; then
+	run_local_target "${ROOT}" "$@"
 fi
 
-if [[ -x "${INSTALL_HOME}/scripts/install-managed.sh" ]]; then
-	run_local_bootstrap "${INSTALL_HOME}" "$@"
+if [[ -x "${INSTALL_HOME}/${TARGET_SCRIPT}" ]]; then
+	run_local_target "${INSTALL_HOME}" "$@"
 fi
 
-install_from_archive "$@"
+run_from_archive "$@"

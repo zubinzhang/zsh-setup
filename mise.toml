@@ -13,15 +13,15 @@ run = "bash tests/run.sh"
 [tasks.syntax]
 description = "Run syntax checks for bash and zsh entrypoints"
 run = [
-  "bash -n install.sh scripts/*.sh scripts/lib/*.sh tests/*.sh tests/helpers/*.sh home/dot_local/bin/executable_zsh-setup-kube-prompt home/dot_local/bin/executable_zsh-setup-check-updates home/dot_local/bin/executable_zsh-setup-sync",
+  "bash -n install.sh rollback.sh uninstall.sh sync.sh scripts/*.sh scripts/lib/*.sh tests/*.sh tests/helpers/*.sh home/dot_local/bin/executable_zsh-setup-kube-prompt home/dot_local/bin/executable_zsh-setup-check-updates home/dot_local/bin/executable_zsh-setup-sync",
   "zsh -n home/dot_zshrc home/dot_config/zsh/zshrc.d/*.zsh"
 ]
 
 [tasks.lint]
 description = "Run shellcheck and formatting checks"
 run = [
-  "shellcheck install.sh scripts/*.sh scripts/lib/*.sh tests/*.sh tests/helpers/*.sh home/dot_local/bin/executable_zsh-setup-kube-prompt home/dot_local/bin/executable_zsh-setup-check-updates home/dot_local/bin/executable_zsh-setup-sync",
-  "shfmt -d install.sh scripts/*.sh scripts/lib/*.sh tests/*.sh tests/helpers/*.sh home/dot_local/bin/executable_zsh-setup-kube-prompt home/dot_local/bin/executable_zsh-setup-check-updates home/dot_local/bin/executable_zsh-setup-sync"
+  "shellcheck install.sh rollback.sh uninstall.sh sync.sh scripts/*.sh scripts/lib/*.sh tests/*.sh tests/helpers/*.sh home/dot_local/bin/executable_zsh-setup-kube-prompt home/dot_local/bin/executable_zsh-setup-check-updates home/dot_local/bin/executable_zsh-setup-sync",
+  "shfmt -d install.sh rollback.sh uninstall.sh sync.sh scripts/*.sh scripts/lib/*.sh tests/*.sh tests/helpers/*.sh home/dot_local/bin/executable_zsh-setup-kube-prompt home/dot_local/bin/executable_zsh-setup-check-updates home/dot_local/bin/executable_zsh-setup-sync"
 ]
 
 [tasks.smoke-apply]
