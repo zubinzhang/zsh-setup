@@ -5,9 +5,7 @@ $time \
 $username\
 $directory\
 $git_branch\
-$custom.kube_danger\
-$custom.kube_warn\
-$custom.kube_safe\
+$custom\
 $character
 """
 

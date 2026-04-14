@@ -1,7 +1,7 @@
 autoload -Uz add-zsh-hook
 
-typeset -g ZSH_SETUP_KUBE_PROMPT=""
-typeset -g ZSH_SETUP_KUBE_STYLE=""
+typeset -gx ZSH_SETUP_KUBE_PROMPT=""
+typeset -gx ZSH_SETUP_KUBE_STYLE=""
 typeset -g ZSH_SETUP_KUBE_LAST_REFRESH=0
 
 _zsh_setup_refresh_kube_prompt() {
