@@ -60,6 +60,104 @@ test_migrate_backs_up_files_and_copies_secrets_overlay() {
 	assert_file_exists "${home}/.config/zsh/local/secrets.zsh"
 }
 
+test_install_managed_flow_prompts_before_migrating_existing_config() {
+	local sandbox home rc output
+	sandbox="$(mk_test_tmpdir)"
+	home="${sandbox}/home"
+	mkdir -p "${home}/.config/mise"
+
+	printf 'legacy-zshrc\n' >"${home}/.zshrc"
+	cat >"${sandbox}/bootstrap.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'bootstrapped\n' >"${HOME}/bootstrap.marker"
+EOF
+	chmod +x "${sandbox}/bootstrap.sh"
+
+	set +e
+	output="$(
+		HOME="${home}" \
+			XDG_CONFIG_HOME="${home}/.config" \
+			XDG_STATE_HOME="${home}/.local/state" \
+			ZSH_SETUP_CONFIRM_RESPONSE="n" \
+			ZSH_SETUP_BOOTSTRAP_SCRIPT="${sandbox}/bootstrap.sh" \
+			"${ROOT}/scripts/install-managed.sh" 2>&1
+	)"
+	rc=$?
+	set -e
+
+	[[ ${rc} -eq 0 ]] || fail "expected install-managed to exit cleanly when migration is declined"
+	assert_contains "${output}" 'Existing shell config detected'
+	assert_not_exists "${home}/bootstrap.marker"
+	assert_not_exists "${home}/.local/state/zsh-setup/backups"
+}
+
+test_install_managed_flow_runs_backup_after_confirmation() {
+	local sandbox home backup_dir
+	sandbox="$(mk_test_tmpdir)"
+	home="${sandbox}/home"
+	mkdir -p "${home}/.config/shell" "${home}/.config/mise"
+
+	printf 'legacy-zshrc\n' >"${home}/.zshrc"
+	printf 'export API_TOKEN=secret\n' >"${home}/.config/shell/secrets.zsh"
+	printf 'legacy-mise\n' >"${home}/.config/mise/config.toml"
+	cat >"${sandbox}/bootstrap.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'bootstrapped\n' >"${HOME}/bootstrap.marker"
+EOF
+	chmod +x "${sandbox}/bootstrap.sh"
+
+	HOME="${home}" \
+		XDG_CONFIG_HOME="${home}/.config" \
+		XDG_STATE_HOME="${home}/.local/state" \
+		ZSH_SETUP_CONFIRM_RESPONSE="y" \
+		ZSH_SETUP_BACKUP_STAMP="20260414T010203Z" \
+		ZSH_SETUP_BOOTSTRAP_SCRIPT="${sandbox}/bootstrap.sh" \
+		"${ROOT}/scripts/install-managed.sh"
+
+	backup_dir="${home}/.local/state/zsh-setup/backups/20260414T010203Z"
+	assert_file_exists "${backup_dir}/dot_zshrc"
+	assert_file_exists "${backup_dir}/dot_config/mise/config.toml"
+	assert_file_exists "${home}/.config/zsh/local/secrets.zsh"
+	assert_equals "bootstrapped" "$(cat "${home}/bootstrap.marker")"
+}
+
+test_install_managed_flow_skips_prompt_for_managed_state() {
+	local sandbox home output
+	sandbox="$(mk_test_tmpdir)"
+	home="${sandbox}/home"
+	mkdir -p "${home}"
+
+	cat >"${home}/.zshrc" <<'EOF'
+# zsh entrypoint managed by chezmoi
+export PATH="$HOME/.local/bin:$PATH"
+EOF
+	cat >"${sandbox}/bootstrap.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'bootstrapped\n' >"${HOME}/bootstrap.marker"
+EOF
+	chmod +x "${sandbox}/bootstrap.sh"
+
+	output="$(
+		HOME="${home}" \
+			XDG_CONFIG_HOME="${home}/.config" \
+			XDG_STATE_HOME="${home}/.local/state" \
+			ZSH_SETUP_CONFIRM_RESPONSE="n" \
+			ZSH_SETUP_BOOTSTRAP_SCRIPT="${sandbox}/bootstrap.sh" \
+			"${ROOT}/scripts/install-managed.sh"
+	)"
+
+	assert_equals "bootstrapped" "$(cat "${home}/bootstrap.marker")"
+	if [[ -d "${home}/.local/state/zsh-setup/backups" ]]; then
+		fail "expected managed install to skip migration backups"
+	fi
+	if [[ "${output}" == *"Existing shell config detected"* ]]; then
+		fail "expected managed install to skip migration prompt"
+	fi
+}
+
 test_rollback_restores_latest_backup_and_original_files() {
 	local sandbox home backup_root
 	sandbox="$(mk_test_tmpdir)"
@@ -249,19 +347,19 @@ EOF
 	assert_contains "${output}" 'ZSH_SETUP_UPDATE_BRANCH=main'
 }
 
-test_install_supports_standalone_archive_bootstrap() {
+test_install_supports_standalone_archive_managed_install() {
 	local sandbox archive_src archive_file
 	sandbox="$(mk_test_tmpdir)"
 	archive_src="${sandbox}/zsh-setup-main"
 	archive_file="${sandbox}/zsh-setup-main.tar.gz"
 	mkdir -p "${archive_src}/scripts" "${sandbox}/bin" "${sandbox}/home"
 
-	cat >"${archive_src}/scripts/bootstrap.sh" <<'EOF'
+	cat >"${archive_src}/scripts/install-managed.sh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 printf 'bootstrapped\n' >"${HOME}/bootstrap.marker"
 EOF
-	chmod +x "${archive_src}/scripts/bootstrap.sh"
+	chmod +x "${archive_src}/scripts/install-managed.sh"
 	tar -czf "${archive_file}" -C "${sandbox}" "zsh-setup-main"
 
 	cp "${ROOT}/install.sh" "${sandbox}/install.sh"
@@ -272,7 +370,7 @@ EOF
 		ZSH_SETUP_ARCHIVE_URL="file://${archive_file}" \
 		"${sandbox}/install.sh"
 
-	assert_file_exists "${sandbox}/installed-repo/scripts/bootstrap.sh"
+	assert_file_exists "${sandbox}/installed-repo/scripts/install-managed.sh"
 	assert_equals "bootstrapped" "$(cat "${sandbox}/home/bootstrap.marker")"
 }
 
@@ -283,7 +381,7 @@ test_install_supports_piped_reinstall() {
 	archive_file="${sandbox}/zsh-setup-main.tar.gz"
 	mkdir -p "${archive_src}/scripts" "${sandbox}/home"
 
-	cat >"${archive_src}/scripts/bootstrap.sh" <<'EOF'
+	cat >"${archive_src}/scripts/install-managed.sh" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 counter_file="${HOME}/bootstrap.counter"
@@ -294,7 +392,7 @@ fi
 count=$((count + 1))
 printf '%s\n' "${count}" >"${counter_file}"
 EOF
-	chmod +x "${archive_src}/scripts/bootstrap.sh"
+	chmod +x "${archive_src}/scripts/install-managed.sh"
 	tar -czf "${archive_file}" -C "${sandbox}" "zsh-setup-main"
 
 	(
@@ -314,6 +412,52 @@ EOF
 	)
 
 	assert_equals "2" "$(cat "${sandbox}/home/bootstrap.counter")"
+}
+
+test_raw_rollback_wrapper_delegates_to_local_script() {
+	local sandbox repo_home
+	sandbox="$(mk_test_tmpdir)"
+	repo_home="${sandbox}/installed-repo"
+	mkdir -p "${repo_home}/scripts" "${sandbox}/home"
+
+	cat >"${repo_home}/scripts/rollback.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'rolled-back\n' >"${HOME}/rollback.marker"
+EOF
+	chmod +x "${repo_home}/scripts/rollback.sh"
+
+	cp "${ROOT}/rollback.sh" "${sandbox}/rollback.sh"
+	chmod +x "${sandbox}/rollback.sh"
+
+	HOME="${sandbox}/home" \
+		ZSH_SETUP_HOME="${repo_home}" \
+		"${sandbox}/rollback.sh"
+
+	assert_equals "rolled-back" "$(cat "${sandbox}/home/rollback.marker")"
+}
+
+test_raw_uninstall_wrapper_delegates_to_local_script() {
+	local sandbox repo_home
+	sandbox="$(mk_test_tmpdir)"
+	repo_home="${sandbox}/installed-repo"
+	mkdir -p "${repo_home}/scripts" "${sandbox}/home"
+
+	cat >"${repo_home}/scripts/uninstall.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'uninstalled\n' >"${HOME}/uninstall.marker"
+EOF
+	chmod +x "${repo_home}/scripts/uninstall.sh"
+
+	cp "${ROOT}/uninstall.sh" "${sandbox}/uninstall.sh"
+	chmod +x "${sandbox}/uninstall.sh"
+
+	HOME="${sandbox}/home" \
+		ZSH_SETUP_HOME="${repo_home}" \
+		"${sandbox}/uninstall.sh"
+
+	assert_equals "uninstalled" "$(cat "${sandbox}/home/uninstall.marker")"
 }
 
 test_sync_refuses_dirty_source() {
@@ -399,7 +543,12 @@ run_test "rollback restores latest backup and original files" test_rollback_rest
 run_test "uninstall removes managed files and preserves local overlay" test_uninstall_removes_managed_files_and_preserves_local_overlay
 run_test "check-updates detects remote update" test_check_updates_detects_remote_update
 run_test "check-updates reports up-to-date state" test_check_updates_reports_up_to_date
-run_test "install supports standalone archive bootstrap" test_install_supports_standalone_archive_bootstrap
+run_test "install-managed prompts before migrating existing config" test_install_managed_flow_prompts_before_migrating_existing_config
+run_test "install-managed runs backup after confirmation" test_install_managed_flow_runs_backup_after_confirmation
+run_test "install-managed skips prompt for managed state" test_install_managed_flow_skips_prompt_for_managed_state
+run_test "install supports standalone archive managed install" test_install_supports_standalone_archive_managed_install
 run_test "install supports piped reinstall" test_install_supports_piped_reinstall
+run_test "raw rollback wrapper delegates to local script" test_raw_rollback_wrapper_delegates_to_local_script
+run_test "raw uninstall wrapper delegates to local script" test_raw_uninstall_wrapper_delegates_to_local_script
 run_test "sync refuses dirty source" test_sync_refuses_dirty_source
 run_test "sync updates clean source" test_sync_updates_clean_source

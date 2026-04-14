@@ -46,6 +46,10 @@ data_home() {
 	printf '%s\n' "${XDG_DATA_HOME:-${HOME}/.local/share}"
 }
 
+managed_zshrc_marker() {
+	printf '%s\n' '# zsh entrypoint managed by chezmoi'
+}
+
 detect_os() {
 	if [[ -n "${ZSH_SETUP_FORCE_OS:-}" ]]; then
 		printf '%s\n' "${ZSH_SETUP_FORCE_OS}"
@@ -120,6 +124,18 @@ copy_dir_if_exists() {
 	fi
 }
 
+dir_has_entries() {
+	local dir="$1"
+	[[ -d "${dir}" ]] || return 1
+	find "${dir}" -mindepth 1 -print -quit | grep -q .
+}
+
+dir_has_unmanaged_zsh_entries() {
+	local dir="$1"
+	[[ -d "${dir}" ]] || return 1
+	find "${dir}" -mindepth 1 -maxdepth 1 ! -name local -print -quit | grep -q .
+}
+
 backup_file() {
 	local src="$1"
 	local rel="$2"
@@ -134,6 +150,80 @@ backup_dir() {
 	local dest
 	dest="$(backup_root)/$(backup_stamp)/${rel}"
 	copy_dir_if_exists "${src}" "${dest}"
+}
+
+legacy_shell_state_paths() {
+	local cfg
+	cfg="$(config_home)"
+
+	[[ -f "${HOME}/.zshrc" ]] && printf '%s\n' "${HOME}/.zshrc"
+	[[ -f "${cfg}/starship.toml" ]] && printf '%s\n' "${cfg}/starship.toml"
+	[[ -f "${cfg}/shell/secrets.zsh" ]] && printf '%s\n' "${cfg}/shell/secrets.zsh"
+	dir_has_entries "${cfg}/mise" && printf '%s\n' "${cfg}/mise"
+	dir_has_unmanaged_zsh_entries "${cfg}/zsh" && printf '%s\n' "${cfg}/zsh"
+}
+
+has_existing_shell_state() {
+	[[ -n "$(legacy_shell_state_paths)" ]]
+}
+
+is_managed_install() {
+	local marker cfg
+	marker="$(managed_zshrc_marker)"
+	cfg="$(config_home)"
+
+	if [[ -f "${HOME}/.zshrc" ]] && grep -Fqx "${marker}" "${HOME}/.zshrc"; then
+		return 0
+	fi
+
+	if [[ -x "${HOME}/.local/bin/zsh-setup-check-updates" && -d "${cfg}/zsh/zshrc.d" ]]; then
+		return 0
+	fi
+
+	return 1
+}
+
+backup_current_shell_state() {
+	local cfg
+	cfg="$(config_home)"
+
+	backup_file "${HOME}/.zshrc" "dot_zshrc"
+	backup_file "${cfg}/starship.toml" "dot_config/starship.toml"
+	backup_file "${cfg}/shell/secrets.zsh" "dot_config/shell/secrets.zsh"
+	backup_dir "${cfg}/mise" "dot_config/mise"
+	backup_dir "${cfg}/zsh" "dot_config/zsh"
+}
+
+seed_local_overlay_from_legacy_secrets() {
+	local cfg overlay_dir secrets_src
+	cfg="$(config_home)"
+	overlay_dir="${cfg}/zsh/local"
+	secrets_src="${cfg}/shell/secrets.zsh"
+
+	mkdir -p "${overlay_dir}"
+	if [[ -f "${secrets_src}" ]]; then
+		cp "${secrets_src}" "${overlay_dir}/secrets.zsh"
+	fi
+}
+
+confirm_with_tty() {
+	local prompt="$1"
+	local reply=""
+
+	if [[ -n "${ZSH_SETUP_CONFIRM_RESPONSE:-}" ]]; then
+		reply="${ZSH_SETUP_CONFIRM_RESPONSE}"
+	elif [[ -r /dev/tty && -w /dev/tty ]]; then
+		printf '%s' "${prompt}" >/dev/tty
+		IFS= read -r reply </dev/tty || true
+		printf '\n' >/dev/tty
+	else
+		die "confirmation required but no interactive tty is available; rerun with --yes if you want to continue"
+	fi
+
+	case "${reply}" in
+	Y | y | YES | Yes | yes) return 0 ;;
+	*) return 1 ;;
+	esac
 }
 
 install_chezmoi() {

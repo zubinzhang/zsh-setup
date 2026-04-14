@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This repo is a `chezmoi`-driven dotfiles project. Put managed home files in `home/`, operational scripts in `scripts/`, and regression tests in `tests/`. Shell startup is split under `home/dot_config/zsh/zshrc.d/`; keep modules small and single-purpose. Stable user helpers live in `home/dot_local/bin/`. CI definitions belong in `.github/workflows/`.
+This repo is a `chezmoi`-driven dotfiles project. Put managed home files in `home/`, operational scripts in `scripts/`, raw lifecycle wrappers in the repo root, and regression tests in `tests/`. Shell startup is split under `home/dot_config/zsh/zshrc.d/`; keep modules small and single-purpose. Stable user helpers live in `home/dot_local/bin/`. CI definitions belong in `.github/workflows/`.
 
 ## Build, Test, and Development Commands
 
@@ -14,7 +14,7 @@ Use `mise` as the only task runner.
 - `mise run smoke-apply`: renders `home/` into a temporary `$HOME` with `chezmoi`
 - `bash scripts/benchmark-shell.sh 10`: measures interactive shell startup
 
-For local recovery flows, use `./install.sh` on a fresh machine and `./scripts/migrate.sh` on an existing machine.
+For local recovery flows, use `./install.sh`; it auto-detects legacy shell state and asks before migrating. Use `./rollback.sh` and `./uninstall.sh` for local rollback and removal. Keep README lifecycle examples aligned with the root raw wrappers.
 
 ## Coding Style & Naming Conventions
 
