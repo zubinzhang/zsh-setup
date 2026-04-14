@@ -42,14 +42,6 @@ emit_cache() {
 	fi
 }
 
-source_dir() {
-	if [[ -n "${ZSH_SETUP_CHEZMOI_SOURCE_PATH:-}" ]]; then
-		printf '%s\n' "${ZSH_SETUP_CHEZMOI_SOURCE_PATH}"
-		return 0
-	fi
-	chezmoi source-path
-}
-
 refresh_cache() {
 	local state_dir cache_file repo_dir branch upstream remote remote_branch
 	local local_rev remote_rev checked_at status
@@ -65,10 +57,19 @@ refresh_cache() {
 	remote_rev=""
 
 	command_exists git || die "git is required"
-	command_exists chezmoi || die "chezmoi is required"
 
-	repo_dir="$(source_dir)"
-	[[ -d "${repo_dir}" ]] || die "chezmoi source path does not exist: ${repo_dir}"
+	repo_dir="$(managed_repo_dir || true)"
+	if [[ -z "${repo_dir}" ]]; then
+		{
+			print_kv "ZSH_SETUP_UPDATE_STATUS" "${status}"
+			print_kv "ZSH_SETUP_UPDATE_BRANCH" "${branch}"
+			print_kv "ZSH_SETUP_UPDATE_LOCAL_REV" "${local_rev}"
+			print_kv "ZSH_SETUP_UPDATE_REMOTE_REV" "${remote_rev}"
+			print_kv "ZSH_SETUP_UPDATE_CHECKED_AT" "${checked_at}"
+		} >"${cache_file}"
+		cat "${cache_file}"
+		return 0
+	fi
 
 	if [[ -n "$(git -C "${repo_dir}" status --porcelain --untracked-files=normal)" ]]; then
 		status="dirty"

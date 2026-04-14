@@ -158,6 +158,41 @@ EOF
 	fi
 }
 
+test_install_managed_flow_treats_partial_state_as_unmanaged() {
+	local sandbox home rc output
+	sandbox="$(mk_test_tmpdir)"
+	home="${sandbox}/home"
+	mkdir -p \
+		"${home}/.config/zsh/zshrc.d" \
+		"${home}/.local/bin"
+
+	printf 'legacy-zshrc\n' >"${home}/.zshrc"
+	printf '#!/usr/bin/env bash\n' >"${home}/.local/bin/zsh-setup-check-updates"
+	chmod +x "${home}/.local/bin/zsh-setup-check-updates"
+	cat >"${sandbox}/bootstrap.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'bootstrapped\n' >"${HOME}/bootstrap.marker"
+EOF
+	chmod +x "${sandbox}/bootstrap.sh"
+
+	set +e
+	output="$(
+		HOME="${home}" \
+			XDG_CONFIG_HOME="${home}/.config" \
+			XDG_STATE_HOME="${home}/.local/state" \
+			ZSH_SETUP_CONFIRM_RESPONSE="n" \
+			ZSH_SETUP_BOOTSTRAP_SCRIPT="${sandbox}/bootstrap.sh" \
+			"${ROOT}/scripts/install-managed.sh" 2>&1
+	)"
+	rc=$?
+	set -e
+
+	[[ ${rc} -eq 0 ]] || fail "expected partial managed state to exit cleanly when migration is declined"
+	assert_contains "${output}" 'Existing shell config detected'
+	assert_not_exists "${home}/bootstrap.marker"
+}
+
 test_rollback_restores_latest_backup_and_original_files() {
 	local sandbox home backup_root
 	sandbox="$(mk_test_tmpdir)"
@@ -243,19 +278,18 @@ test_uninstall_removes_managed_files_and_preserves_local_overlay() {
 }
 
 test_check_updates_detects_remote_update() {
-	local sandbox home remote_dir source_dir writer_dir bin_dir output
+	local sandbox home remote_dir install_home writer_dir output
 	sandbox="$(mk_test_tmpdir)"
 	home="${sandbox}/home"
 	remote_dir="${sandbox}/remote.git"
-	source_dir="${sandbox}/source"
+	install_home="${sandbox}/installed-repo"
 	writer_dir="${sandbox}/writer"
-	bin_dir="${sandbox}/bin"
-	mkdir -p "${home}" "${bin_dir}"
+	mkdir -p "${home}"
 
 	git init -q --bare "${remote_dir}"
-	git clone -q "${remote_dir}" "${source_dir}"
+	git clone -q "${remote_dir}" "${install_home}"
 	(
-		cd "${source_dir}"
+		cd "${install_home}"
 		git config user.email test@example.com
 		git config user.name test
 		git checkout -q -b main
@@ -278,22 +312,10 @@ test_check_updates_detects_remote_update() {
 		git push >/dev/null
 	)
 
-	cat >"${bin_dir}/chezmoi" <<EOF
-#!/usr/bin/env bash
-set -euo pipefail
-if [[ "\$1" == "source-path" ]]; then
-  printf '%s\n' "${source_dir}"
-else
-  printf 'unexpected chezmoi args: %s\n' "\$*" >&2
-  exit 1
-fi
-EOF
-	chmod +x "${bin_dir}/chezmoi"
-
 	output="$(
 		HOME="${home}" \
 			XDG_STATE_HOME="${home}/.local/state" \
-			PATH="${bin_dir}:$PATH" \
+			ZSH_SETUP_HOME="${install_home}" \
 			"${ROOT}/scripts/check-updates.sh" --refresh
 	)"
 
@@ -302,18 +324,17 @@ EOF
 }
 
 test_check_updates_reports_up_to_date() {
-	local sandbox home remote_dir source_dir bin_dir output
+	local sandbox home remote_dir install_home output
 	sandbox="$(mk_test_tmpdir)"
 	home="${sandbox}/home"
 	remote_dir="${sandbox}/remote.git"
-	source_dir="${sandbox}/source"
-	bin_dir="${sandbox}/bin"
-	mkdir -p "${home}" "${bin_dir}"
+	install_home="${sandbox}/installed-repo"
+	mkdir -p "${home}"
 
 	git init -q --bare "${remote_dir}"
-	git clone -q "${remote_dir}" "${source_dir}"
+	git clone -q "${remote_dir}" "${install_home}"
 	(
-		cd "${source_dir}"
+		cd "${install_home}"
 		git config user.email test@example.com
 		git config user.name test
 		git checkout -q -b main
@@ -324,27 +345,97 @@ test_check_updates_reports_up_to_date() {
 	)
 	git --git-dir="${remote_dir}" symbolic-ref HEAD refs/heads/main
 
-	cat >"${bin_dir}/chezmoi" <<EOF
-#!/usr/bin/env bash
-set -euo pipefail
-if [[ "\$1" == "source-path" ]]; then
-  printf '%s\n' "${source_dir}"
-else
-  printf 'unexpected chezmoi args: %s\n' "\$*" >&2
-  exit 1
-fi
-EOF
-	chmod +x "${bin_dir}/chezmoi"
-
 	output="$(
 		HOME="${home}" \
 			XDG_STATE_HOME="${home}/.local/state" \
-			PATH="${bin_dir}:$PATH" \
+			ZSH_SETUP_HOME="${install_home}" \
 			"${ROOT}/scripts/check-updates.sh" --refresh
 	)"
 
 	assert_contains "${output}" 'ZSH_SETUP_UPDATE_STATUS=up_to_date'
 	assert_contains "${output}" 'ZSH_SETUP_UPDATE_BRANCH=main'
+}
+
+test_check_updates_uses_installed_repo_without_chezmoi_source_path() {
+	local sandbox home install_home output
+	sandbox="$(mk_test_tmpdir)"
+	home="${sandbox}/home"
+	install_home="${sandbox}/installed-repo"
+	mkdir -p "${home}" "${install_home}/home"
+
+	git init -q "${install_home}"
+	(
+		cd "${install_home}"
+		git config user.email test@example.com
+		git config user.name test
+		printf 'v1\n' >README.md
+		git add README.md
+		git commit -m init >/dev/null
+	)
+
+	output="$(
+		HOME="${home}" \
+			XDG_STATE_HOME="${home}/.local/state" \
+			ZSH_SETUP_HOME="${install_home}" \
+			"${ROOT}/scripts/check-updates.sh" --refresh
+	)"
+
+	assert_contains "${output}" 'ZSH_SETUP_UPDATE_STATUS=unknown'
+}
+
+test_bootstrap_uses_apply_for_local_home_source() {
+	local sandbox home bin_dir log_file
+	sandbox="$(mk_test_tmpdir)"
+	home="${sandbox}/home"
+	bin_dir="${sandbox}/bin"
+	log_file="${sandbox}/chezmoi.log"
+	mkdir -p "${home}" "${bin_dir}"
+
+	cat >"${bin_dir}/chezmoi" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "\$*" >>"${log_file}"
+if [[ "\$1" == "apply" && "\$2" == "--source=${ROOT}/home" ]]; then
+  mkdir -p "${home}/.config/zsh/zshrc.d" "${home}/.config/zsh/local" "${home}/.local/bin" "${home}/.local/state/zsh-setup/updates" "${home}/.local/state/zsh-setup/backups"
+  printf '# zsh entrypoint managed by chezmoi\n' >"${home}/.zshrc"
+  printf 'managed-starship\n' >"${home}/.config/starship.toml"
+  printf '#!/usr/bin/env bash\n' >"${home}/.local/bin/zsh-setup-check-updates"
+  printf '#!/usr/bin/env bash\n' >"${home}/.local/bin/zsh-setup-sync"
+  chmod +x "${home}/.local/bin/zsh-setup-check-updates" "${home}/.local/bin/zsh-setup-sync"
+  exit 0
+fi
+printf 'unexpected chezmoi args: %s\n' "\$*" >&2
+exit 1
+EOF
+	chmod +x "${bin_dir}/chezmoi"
+
+	cat >"${bin_dir}/mise" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+exit 0
+EOF
+	chmod +x "${bin_dir}/mise"
+
+	PATH="${bin_dir}:$PATH" HOME="${home}" XDG_CONFIG_HOME="${home}/.config" XDG_STATE_HOME="${home}/.local/state" "${ROOT}/scripts/bootstrap.sh"
+
+	assert_contains "$(cat "${log_file}")" "apply --source=${ROOT}/home"
+	if grep -Fq 'init --apply' "${log_file}"; then
+		fail "expected bootstrap to use chezmoi apply for the local home source"
+	fi
+}
+
+test_managed_mise_config_excludes_chezmoi_and_gh() {
+	local config
+	config="$(cat "${ROOT}/home/dot_config/mise/config.toml")"
+	if [[ "${config}" == *'chezmoi'* ]]; then
+		fail "expected managed mise config to exclude chezmoi"
+	fi
+	if [[ "${config}" == *$'\ngh = '* || "${config}" == *$'\r\ngh = '* ]]; then
+		fail "expected managed mise config to exclude gh"
+	fi
+	assert_contains "${config}" 'helm = "latest"'
+	assert_contains "${config}" 'kubectl = "latest"'
+	assert_contains "${config}" 'starship = "latest"'
 }
 
 test_install_supports_standalone_archive_managed_install() {
@@ -414,6 +505,52 @@ EOF
 	assert_equals "2" "$(cat "${sandbox}/home/bootstrap.counter")"
 }
 
+test_install_prefers_git_clone_when_git_is_available() {
+	local sandbox bin_dir
+	sandbox="$(mk_test_tmpdir)"
+	bin_dir="${sandbox}/bin"
+	mkdir -p "${bin_dir}" "${sandbox}/home"
+
+	cat >"${bin_dir}/git" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "\$1" == "clone" ]]; then
+  target="\${@: -1}"
+  mkdir -p "\${target}/scripts"
+  cat >"\${target}/scripts/install-managed.sh" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'bootstrapped\n' >"\${HOME}/bootstrap.marker"
+SCRIPT
+  chmod +x "\${target}/scripts/install-managed.sh"
+  exit 0
+fi
+printf 'unexpected git args: %s\n' "\$*" >&2
+exit 1
+EOF
+	chmod +x "${bin_dir}/git"
+
+	cat >"${bin_dir}/curl" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'curl should not be called when git clone is available\n' >&2
+exit 1
+EOF
+	chmod +x "${bin_dir}/curl"
+
+	cp "${ROOT}/install.sh" "${sandbox}/install.sh"
+	chmod +x "${sandbox}/install.sh"
+
+	PATH="${bin_dir}:$PATH" \
+		HOME="${sandbox}/home" \
+		ZSH_SETUP_HOME="${sandbox}/installed-repo" \
+		ZSH_SETUP_REPO_URL="https://example.invalid/zsh-setup.git" \
+		"${sandbox}/install.sh"
+
+	assert_file_exists "${sandbox}/installed-repo/scripts/install-managed.sh"
+	assert_equals "bootstrapped" "$(cat "${sandbox}/home/bootstrap.marker")"
+}
+
 test_raw_rollback_wrapper_delegates_to_local_script() {
 	local sandbox repo_home
 	sandbox="$(mk_test_tmpdir)"
@@ -461,15 +598,16 @@ EOF
 }
 
 test_sync_refuses_dirty_source() {
-	local sandbox bin_dir source_dir rc
+	local sandbox bin_dir install_home home rc
 	sandbox="$(mk_test_tmpdir)"
 	bin_dir="${sandbox}/bin"
-	source_dir="${sandbox}/chezmoi-source"
-	mkdir -p "${bin_dir}" "${source_dir}"
+	install_home="${sandbox}/installed-repo"
+	home="${sandbox}/home"
+	mkdir -p "${bin_dir}" "${install_home}/home" "${home}"
 
-	git init -q "${source_dir}"
+	git init -q "${install_home}"
 	(
-		cd "${source_dir}"
+		cd "${install_home}"
 		git config user.email test@example.com
 		git config user.name test
 		printf 'tracked\n' >README.md
@@ -481,9 +619,7 @@ test_sync_refuses_dirty_source() {
 	cat >"${bin_dir}/chezmoi" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-if [[ "\$1" == "source-path" ]]; then
-  printf '%s\n' "${source_dir}"
-elif [[ "\$1" == "update" ]]; then
+if [[ "\$1" == "apply" ]]; then
   touch "${sandbox}/unexpected-update"
 else
   printf 'unexpected chezmoi args: %s\n' "\$*" >&2
@@ -493,7 +629,7 @@ EOF
 	chmod +x "${bin_dir}/chezmoi"
 
 	set +e
-	PATH="${bin_dir}:$PATH" "${ROOT}/scripts/sync.sh"
+	HOME="${home}" ZSH_SETUP_HOME="${install_home}" PATH="${bin_dir}:$PATH" "${ROOT}/scripts/sync.sh"
 	rc=$?
 	set -e
 
@@ -502,15 +638,51 @@ EOF
 }
 
 test_sync_updates_clean_source() {
-	local sandbox bin_dir source_dir
+	local sandbox bin_dir install_home home
 	sandbox="$(mk_test_tmpdir)"
 	bin_dir="${sandbox}/bin"
-	source_dir="${sandbox}/chezmoi-source"
-	mkdir -p "${bin_dir}" "${source_dir}"
+	install_home="${sandbox}/installed-repo"
+	home="${sandbox}/home"
+	mkdir -p "${bin_dir}" "${install_home}/home" "${home}"
 
-	git init -q "${source_dir}"
+	git init -q "${install_home}"
 	(
-		cd "${source_dir}"
+		cd "${install_home}"
+		git config user.email test@example.com
+		git config user.name test
+		printf 'tracked\n' >README.md
+		git add README.md
+		git commit -m init >/dev/null
+	)
+
+	cat >"${bin_dir}/chezmoi" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "\$1" == "apply" && "\$2" == "--source=${install_home}/home" ]]; then
+  touch "${sandbox}/update-ran"
+else
+  printf 'unexpected chezmoi args: %s\n' "\$*" >&2
+  exit 1
+fi
+EOF
+	chmod +x "${bin_dir}/chezmoi"
+
+	HOME="${home}" ZSH_SETUP_HOME="${install_home}" PATH="${bin_dir}:$PATH" "${ROOT}/scripts/sync.sh"
+
+	assert_file_exists "${sandbox}/update-ran"
+}
+
+test_sync_uses_installed_repo_without_chezmoi_source_path() {
+	local sandbox home install_home bin_dir
+	sandbox="$(mk_test_tmpdir)"
+	home="${sandbox}/home"
+	install_home="${sandbox}/installed-repo"
+	bin_dir="${sandbox}/bin"
+	mkdir -p "${install_home}/home" "${bin_dir}" "${home}"
+
+	git init -q "${install_home}"
+	(
+		cd "${install_home}"
 		git config user.email test@example.com
 		git config user.name test
 		printf 'tracked\n' >README.md
@@ -522,9 +694,10 @@ test_sync_updates_clean_source() {
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ "\$1" == "source-path" ]]; then
-  printf '%s\n' "${source_dir}"
-elif [[ "\$1" == "update" ]]; then
-  touch "${sandbox}/update-ran"
+  printf 'source-path should not be called\n' >&2
+  exit 1
+elif [[ "\$1" == "apply" && "\$2" == "--source=${install_home}/home" ]]; then
+  touch "${sandbox}/apply-ran"
 else
   printf 'unexpected chezmoi args: %s\n' "\$*" >&2
   exit 1
@@ -532,9 +705,54 @@ fi
 EOF
 	chmod +x "${bin_dir}/chezmoi"
 
-	PATH="${bin_dir}:$PATH" "${ROOT}/scripts/sync.sh"
+	HOME="${home}" \
+		ZSH_SETUP_HOME="${install_home}" \
+		PATH="${bin_dir}:$PATH" \
+		"${ROOT}/scripts/sync.sh"
 
-	assert_file_exists "${sandbox}/update-ran"
+	assert_file_exists "${sandbox}/apply-ran"
+}
+
+test_doctor_requires_managed_zshrc_marker() {
+	local sandbox home rc output
+	sandbox="$(mk_test_tmpdir)"
+	home="${sandbox}/home"
+	mkdir -p \
+		"${home}/.config/zsh/zshrc.d" \
+		"${home}/.config/zsh/local" \
+		"${home}/.local/bin" \
+		"${home}/.local/state/zsh-setup/updates" \
+		"${home}/.local/state/zsh-setup/backups" \
+		"${sandbox}/bin"
+
+	printf 'legacy-zshrc\n' >"${home}/.zshrc"
+	printf 'managed-starship\n' >"${home}/.config/starship.toml"
+	printf '#!/usr/bin/env bash\n' >"${home}/.local/bin/zsh-setup-check-updates"
+	printf '#!/usr/bin/env bash\n' >"${home}/.local/bin/zsh-setup-sync"
+	chmod +x "${home}/.local/bin/zsh-setup-check-updates" "${home}/.local/bin/zsh-setup-sync"
+
+	for cmd in zsh git chezmoi mise starship; do
+		cat >"${sandbox}/bin/${cmd}" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+exit 0
+EOF
+		chmod +x "${sandbox}/bin/${cmd}"
+	done
+
+	set +e
+	output="$(
+		HOME="${home}" \
+			XDG_CONFIG_HOME="${home}/.config" \
+			XDG_STATE_HOME="${home}/.local/state" \
+			PATH="${sandbox}/bin:$PATH" \
+			"${ROOT}/scripts/doctor.sh" 2>&1
+	)"
+	rc=$?
+	set -e
+
+	[[ ${rc} -ne 0 ]] || fail "expected doctor to fail when the managed zshrc marker is missing"
+	assert_contains "${output}" 'managed zshrc marker'
 }
 
 run_test "kube prompt marks prod context" test_kube_prompt_marks_prod_context
@@ -546,9 +764,16 @@ run_test "check-updates reports up-to-date state" test_check_updates_reports_up_
 run_test "install-managed prompts before migrating existing config" test_install_managed_flow_prompts_before_migrating_existing_config
 run_test "install-managed runs backup after confirmation" test_install_managed_flow_runs_backup_after_confirmation
 run_test "install-managed skips prompt for managed state" test_install_managed_flow_skips_prompt_for_managed_state
+run_test "install-managed treats partial state as unmanaged" test_install_managed_flow_treats_partial_state_as_unmanaged
+run_test "bootstrap uses apply for local home source" test_bootstrap_uses_apply_for_local_home_source
+run_test "managed mise config excludes chezmoi and gh" test_managed_mise_config_excludes_chezmoi_and_gh
 run_test "install supports standalone archive managed install" test_install_supports_standalone_archive_managed_install
 run_test "install supports piped reinstall" test_install_supports_piped_reinstall
+run_test "install prefers git clone when git is available" test_install_prefers_git_clone_when_git_is_available
+run_test "check-updates uses installed repo without chezmoi source-path" test_check_updates_uses_installed_repo_without_chezmoi_source_path
 run_test "raw rollback wrapper delegates to local script" test_raw_rollback_wrapper_delegates_to_local_script
 run_test "raw uninstall wrapper delegates to local script" test_raw_uninstall_wrapper_delegates_to_local_script
 run_test "sync refuses dirty source" test_sync_refuses_dirty_source
 run_test "sync updates clean source" test_sync_updates_clean_source
+run_test "sync uses installed repo without chezmoi source-path" test_sync_uses_installed_repo_without_chezmoi_source_path
+run_test "doctor requires managed zshrc marker" test_doctor_requires_managed_zshrc_marker

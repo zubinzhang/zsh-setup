@@ -2,100 +2,12 @@
 
 set -euo pipefail
 
-MODE="refresh"
-STATE_ROOT="${ZSH_SETUP_STATE_HOME:-${XDG_STATE_HOME:-${HOME}/.local/state}/zsh-setup}"
+INSTALL_HOME="${ZSH_SETUP_HOME:-${XDG_DATA_HOME:-${HOME}/.local/share}/zsh-setup}"
+SCRIPT_PATH="${INSTALL_HOME}/scripts/check-updates.sh"
 
-for arg in "$@"; do
-	case "${arg}" in
-	--refresh) MODE="refresh" ;;
-	--cache) MODE="cache" ;;
-	*)
-		printf '[zsh-setup] ERROR: unsupported argument: %s\n' "${arg}" >&2
-		exit 1
-		;;
-	esac
-done
-
-print_kv() {
-	local key="$1"
-	local value="$2"
-	printf '%s=%q\n' "${key}" "${value}"
-}
-
-print_defaults() {
-	print_kv "ZSH_SETUP_UPDATE_STATUS" "unknown"
-	print_kv "ZSH_SETUP_UPDATE_BRANCH" ""
-	print_kv "ZSH_SETUP_UPDATE_LOCAL_REV" ""
-	print_kv "ZSH_SETUP_UPDATE_REMOTE_REV" ""
-	print_kv "ZSH_SETUP_UPDATE_CHECKED_AT" "0"
-}
-
-state_dir="${STATE_ROOT}/updates"
-cache_file="${state_dir}/status.env"
-
-if [[ "${MODE}" == "cache" ]]; then
-	if [[ -f "${cache_file}" ]]; then
-		cat "${cache_file}"
-	else
-		print_defaults
-	fi
-	exit 0
+if [[ ! -x "${SCRIPT_PATH}" ]]; then
+	printf '[zsh-setup] ERROR: managed update-check script is missing: %s\n' "${SCRIPT_PATH}" >&2
+	exit 1
 fi
 
-command -v git >/dev/null 2>&1 || {
-	printf '[zsh-setup] ERROR: git is required\n' >&2
-	exit 1
-}
-command -v chezmoi >/dev/null 2>&1 || {
-	printf '[zsh-setup] ERROR: chezmoi is required\n' >&2
-	exit 1
-}
-
-mkdir -p "${state_dir}"
-repo_dir="$(chezmoi source-path)"
-[[ -d "${repo_dir}" ]] || {
-	printf '[zsh-setup] ERROR: chezmoi source path does not exist: %s\n' "${repo_dir}" >&2
-	exit 1
-}
-
-checked_at="$(date +%s)"
-status="unknown"
-branch=""
-local_rev=""
-remote_rev=""
-upstream=""
-
-if [[ -n "$(git -C "${repo_dir}" status --porcelain --untracked-files=normal)" ]]; then
-	status="dirty"
-else
-	branch="$(git -C "${repo_dir}" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
-	upstream="$(git -C "${repo_dir}" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || true)"
-	local_rev="$(git -C "${repo_dir}" rev-parse HEAD 2>/dev/null || true)"
-
-	if [[ -n "${upstream}" ]]; then
-		remote="${upstream%%/*}"
-		remote_branch="${upstream#*/}"
-		git -C "${repo_dir}" fetch --quiet "${remote}" "${remote_branch}" >/dev/null 2>&1 || true
-		remote_rev="$(git -C "${repo_dir}" rev-parse "${upstream}" 2>/dev/null || true)"
-	fi
-
-	if [[ -z "${upstream}" || -z "${remote_rev}" || -z "${local_rev}" ]]; then
-		status="unknown"
-	elif [[ "${local_rev}" == "${remote_rev}" ]]; then
-		status="up_to_date"
-	elif git -C "${repo_dir}" merge-base --is-ancestor HEAD "${upstream}" >/dev/null 2>&1; then
-		status="available"
-	else
-		status="manual"
-	fi
-fi
-
-{
-	print_kv "ZSH_SETUP_UPDATE_STATUS" "${status}"
-	print_kv "ZSH_SETUP_UPDATE_BRANCH" "${branch}"
-	print_kv "ZSH_SETUP_UPDATE_LOCAL_REV" "${local_rev}"
-	print_kv "ZSH_SETUP_UPDATE_REMOTE_REV" "${remote_rev}"
-	print_kv "ZSH_SETUP_UPDATE_CHECKED_AT" "${checked_at}"
-} >"${cache_file}"
-
-cat "${cache_file}"
+exec "${SCRIPT_PATH}" "$@"
