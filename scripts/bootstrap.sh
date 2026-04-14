@@ -20,10 +20,10 @@ ensure_runtime_dirs() {
 apply_dotfiles() {
 	if [[ -d "${ZSH_SETUP_REPO_ROOT}/home" ]]; then
 		log "Applying dotfiles from local source"
-		chezmoi apply --source="${ZSH_SETUP_REPO_ROOT}/home"
+		chezmoi apply --force --source="${ZSH_SETUP_REPO_ROOT}/home"
 	else
 		log "Applying dotfiles from ${DEFAULT_REMOTE_REPO}"
-		chezmoi init --apply "${DEFAULT_REMOTE_REPO}"
+		chezmoi init --apply --force "${DEFAULT_REMOTE_REPO}"
 	fi
 }
 
