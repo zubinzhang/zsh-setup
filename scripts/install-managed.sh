@@ -46,6 +46,7 @@ maybe_migrate_existing_state() {
 
 	backup_current_shell_state
 	seed_local_overlay_from_legacy_secrets
+	remove_managed_target_paths
 	log "backup created at $(backup_root)/$(backup_stamp)"
 }
 
