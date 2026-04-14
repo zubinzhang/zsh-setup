@@ -2,24 +2,12 @@
 
 set -euo pipefail
 
-if ! command -v chezmoi >/dev/null 2>&1; then
-	printf '[zsh-setup] ERROR: chezmoi is required\n' >&2
-	exit 1
-fi
-if ! command -v git >/dev/null 2>&1; then
-	printf '[zsh-setup] ERROR: git is required\n' >&2
+INSTALL_HOME="${ZSH_SETUP_HOME:-${XDG_DATA_HOME:-${HOME}/.local/share}/zsh-setup}"
+SCRIPT_PATH="${INSTALL_HOME}/scripts/sync.sh"
+
+if [[ ! -x "${SCRIPT_PATH}" ]]; then
+	printf '[zsh-setup] ERROR: managed sync script is missing: %s\n' "${SCRIPT_PATH}" >&2
 	exit 1
 fi
 
-source_dir="$(chezmoi source-path)"
-if [[ ! -d "${source_dir}" ]]; then
-	printf '[zsh-setup] ERROR: chezmoi source path does not exist: %s\n' "${source_dir}" >&2
-	exit 1
-fi
-
-if [[ -n "$(git -C "${source_dir}" status --porcelain --untracked-files=normal)" ]]; then
-	printf '[zsh-setup] ERROR: chezmoi source has local changes; refusing to sync\n' >&2
-	exit 1
-fi
-
-exec chezmoi update --apply
+exec "${SCRIPT_PATH}" "$@"

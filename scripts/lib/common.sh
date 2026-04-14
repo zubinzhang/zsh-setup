@@ -46,8 +46,40 @@ data_home() {
 	printf '%s\n' "${XDG_DATA_HOME:-${HOME}/.local/share}"
 }
 
+zsh_setup_install_home() {
+	printf '%s\n' "${ZSH_SETUP_HOME:-$(data_home)/zsh-setup}"
+}
+
+managed_source_dir() {
+	printf '%s\n' "$(zsh_setup_install_home)/home"
+}
+
 managed_zshrc_marker() {
 	printf '%s\n' '# zsh entrypoint managed by chezmoi'
+}
+
+has_managed_zshrc_marker() {
+	local marker
+	marker="$(managed_zshrc_marker)"
+	[[ -f "${HOME}/.zshrc" ]] && grep -Fqx "${marker}" "${HOME}/.zshrc"
+}
+
+managed_repo_dir() {
+	local install_home source_dir
+	install_home="$(zsh_setup_install_home)"
+	source_dir="$(managed_source_dir)"
+
+	if git -C "${install_home}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+		printf '%s\n' "${install_home}"
+		return 0
+	fi
+
+	if git -C "${source_dir}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+		printf '%s\n' "${source_dir}"
+		return 0
+	fi
+
+	return 1
 }
 
 detect_os() {
@@ -168,19 +200,7 @@ has_existing_shell_state() {
 }
 
 is_managed_install() {
-	local marker cfg
-	marker="$(managed_zshrc_marker)"
-	cfg="$(config_home)"
-
-	if [[ -f "${HOME}/.zshrc" ]] && grep -Fqx "${marker}" "${HOME}/.zshrc"; then
-		return 0
-	fi
-
-	if [[ -x "${HOME}/.local/bin/zsh-setup-check-updates" && -d "${cfg}/zsh/zshrc.d" ]]; then
-		return 0
-	fi
-
-	return 1
+	has_managed_zshrc_marker
 }
 
 backup_current_shell_state() {

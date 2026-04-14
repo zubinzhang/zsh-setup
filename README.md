@@ -18,7 +18,7 @@ Fresh restore and migration now use the same entrypoint:
 curl -fsSL https://raw.githubusercontent.com/zubinzhang/zsh-setup/main/install.sh | bash
 ```
 
-The raw installer downloads the repo into `~/.local/share/zsh-setup/` and then runs the managed install flow. If it detects an existing `~/.zshrc`, `~/.config/starship.toml`, `~/.config/mise/`, `~/.config/zsh/`, or `~/.config/shell/secrets.zsh`, it prints the backup target and asks before migrating. Existing managed installs skip that prompt.
+The raw installer prefers a shallow `git clone` into `~/.local/share/zsh-setup/` when `git` is available, then runs the managed install flow. If `git` is unavailable or you explicitly provide `ZSH_SETUP_ARCHIVE_URL`, it falls back to the source archive path. If it detects an existing `~/.zshrc`, `~/.config/starship.toml`, `~/.config/mise/`, `~/.config/zsh/`, or `~/.config/shell/secrets.zsh`, it prints the backup target and asks before migrating. Existing managed installs skip that prompt.
 
 For non-interactive migration, pass `--yes`:
 
@@ -67,6 +67,8 @@ bash scripts/benchmark-shell.sh 10
 ```
 
 Update detection runs during shell startup through `~/.local/bin/zsh-setup-check-updates`: if the local `chezmoi` source is behind its upstream, the next shell startup asks whether to upgrade now. Nothing is auto-applied without confirmation, and dirty source trees still block the upgrade path.
+
+Bootstrap installs `chezmoi` itself. User-level `mise` config in this repo manages `starship`, `kubectl`, and `helm`; it does not manage `chezmoi` or `gh`.
 
 ## Local-only secrets and overrides
 

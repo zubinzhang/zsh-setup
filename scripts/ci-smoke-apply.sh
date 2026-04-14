@@ -12,7 +12,7 @@ export XDG_STATE_HOME="${HOME}/.local/state"
 export XDG_CACHE_HOME="${HOME}/.cache"
 
 mkdir -p "${HOME}"
-chezmoi init --apply --source="${ROOT}/home"
+chezmoi apply --source="${ROOT}/home"
 
 test -f "${HOME}/.zshrc"
 test -f "${XDG_CONFIG_HOME}/starship.toml"

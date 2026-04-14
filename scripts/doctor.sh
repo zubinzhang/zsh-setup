@@ -28,6 +28,17 @@ check_path() {
 	fi
 }
 
+check_managed_zshrc() {
+	local marker
+	marker="$(managed_zshrc_marker)"
+	if has_managed_zshrc_marker; then
+		log "ok: found managed zshrc marker"
+	else
+		warn "missing managed zshrc marker (${marker}) in ${HOME}/.zshrc"
+		failures=$((failures + 1))
+	fi
+}
+
 main() {
 	check_command zsh
 	check_command git
@@ -35,7 +46,7 @@ main() {
 	check_command mise
 	check_command starship
 
-	check_path "${HOME}/.zshrc"
+	check_managed_zshrc
 	check_path "$(config_home)/starship.toml"
 	check_path "$(config_home)/zsh/zshrc.d"
 	check_path "$(config_home)/zsh/local"
