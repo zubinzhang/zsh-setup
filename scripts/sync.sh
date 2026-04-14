@@ -27,7 +27,7 @@ main() {
 		fi
 	fi
 
-	chezmoi apply --source="${source_dir}"
+	chezmoi apply --force --source="${source_dir}"
 }
 
 main "$@"
