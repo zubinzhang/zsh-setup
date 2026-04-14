@@ -83,6 +83,9 @@ if [[ -n "${ROOT}" && -x "${ROOT}/scripts/install-managed.sh" ]]; then
 fi
 
 if [[ -x "${INSTALL_HOME}/scripts/install-managed.sh" ]]; then
+	if git -C "${INSTALL_HOME}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+		git -C "${INSTALL_HOME}" pull --ff-only --quiet >/dev/null 2>&1 || true
+	fi
 	run_local_bootstrap "${INSTALL_HOME}" "$@"
 fi
 
