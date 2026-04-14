@@ -1,0 +1,63 @@
+"$schema" = "https://starship.rs/config-schema.json"
+
+format = """
+$time \
+$username\
+$directory\
+$git_branch\
+$custom.kube_danger\
+$custom.kube_warn\
+$custom.kube_safe\
+$character
+"""
+
+add_newline = true
+scan_timeout = 30
+command_timeout = 300
+
+[character]
+error_symbol = "[x](bold red) "
+success_symbol = "[>](bold green) "
+
+[cmd_duration]
+min_time = 3000
+format = "took [$duration]($style) "
+
+[directory]
+truncation_length = 0
+truncate_to_repo = false
+format = "[$path]($style)[$lock_symbol]($lock_style)"
+
+[git_branch]
+symbol = " git:"
+style = "bold yellow"
+format = "[$symbol$branch]($style) "
+
+[time]
+disabled = false
+time_format = "%Y-%m-%d %H:%M:%S"
+format = "[$time]($style) "
+style = "bold white"
+
+[username]
+style_user = "green"
+show_always = true
+format = "[$user]($style) "
+
+[custom.kube_danger]
+command = "printf '%s' \"$ZSH_SETUP_KUBE_PROMPT\""
+when = "test -n \"$ZSH_SETUP_KUBE_PROMPT\" && test \"$ZSH_SETUP_KUBE_STYLE\" = danger"
+shell = ["bash", "--noprofile", "--norc"]
+format = "[k8s:$output](bold red) "
+
+[custom.kube_warn]
+command = "printf '%s' \"$ZSH_SETUP_KUBE_PROMPT\""
+when = "test -n \"$ZSH_SETUP_KUBE_PROMPT\" && test \"$ZSH_SETUP_KUBE_STYLE\" = warn"
+shell = ["bash", "--noprofile", "--norc"]
+format = "[k8s:$output](bold yellow) "
+
+[custom.kube_safe]
+command = "printf '%s' \"$ZSH_SETUP_KUBE_PROMPT\""
+when = "test -n \"$ZSH_SETUP_KUBE_PROMPT\" && test \"$ZSH_SETUP_KUBE_STYLE\" = safe"
+shell = ["bash", "--noprofile", "--norc"]
+format = "[k8s:$output](bold cyan) "

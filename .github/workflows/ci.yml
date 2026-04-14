@@ -1,0 +1,37 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  shell:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup mise
+        uses: jdx/mise-action@v2
+
+      - name: Trust config
+        run: mise trust --yes
+
+      - name: Unit tests
+        run: bash tests/run.sh
+
+      - name: Syntax checks
+        run: mise run syntax
+
+      - name: Lint
+        run: mise run lint
+
+      - name: Chezmoi smoke apply
+        run: bash scripts/ci-smoke-apply.sh

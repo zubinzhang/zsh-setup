@@ -1,0 +1,36 @@
+min_version = "2024.1.0"
+
+[tools]
+shellcheck = "latest"
+shfmt = "latest"
+chezmoi = "latest"
+starship = "latest"
+
+[tasks.test]
+description = "Run repository shell tests"
+run = "bash tests/run.sh"
+
+[tasks.syntax]
+description = "Run syntax checks for bash and zsh entrypoints"
+run = [
+  "bash -n install.sh scripts/*.sh scripts/lib/*.sh tests/*.sh tests/helpers/*.sh home/dot_local/bin/executable_zsh-setup-kube-prompt home/dot_local/bin/executable_zsh-setup-check-updates home/dot_local/bin/executable_zsh-setup-sync",
+  "zsh -n home/dot_zshrc home/dot_config/zsh/zshrc.d/*.zsh"
+]
+
+[tasks.lint]
+description = "Run shellcheck and formatting checks"
+run = [
+  "shellcheck install.sh scripts/*.sh scripts/lib/*.sh tests/*.sh tests/helpers/*.sh home/dot_local/bin/executable_zsh-setup-kube-prompt home/dot_local/bin/executable_zsh-setup-check-updates home/dot_local/bin/executable_zsh-setup-sync",
+  "shfmt -d install.sh scripts/*.sh scripts/lib/*.sh tests/*.sh tests/helpers/*.sh home/dot_local/bin/executable_zsh-setup-kube-prompt home/dot_local/bin/executable_zsh-setup-check-updates home/dot_local/bin/executable_zsh-setup-sync"
+]
+
+[tasks.smoke-apply]
+description = "Render dotfiles into a temporary home directory"
+run = "bash scripts/ci-smoke-apply.sh"
+
+[tasks.ci]
+description = "Run the full local CI suite"
+run = [
+  "bash tests/run.sh",
+  "bash scripts/ci-smoke-apply.sh"
+]
