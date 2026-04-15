@@ -5,7 +5,8 @@ fpath=("${ZSH_SETUP_CACHE_HOME}/completions" $fpath)
 for _d in \
   /opt/homebrew/share/zsh-completions \
   /usr/local/share/zsh-completions \
-  /usr/share/zsh/vendor-completions; do
+  /usr/share/zsh/vendor-completions \
+  "${XDG_DATA_HOME:-$HOME/.local/share}/zsh-completions/src"; do
   [[ -d "$_d" ]] && fpath=("$_d" $fpath)
 done
 unset _d
