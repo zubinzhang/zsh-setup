@@ -57,6 +57,8 @@ test_install_shell_deps_keeps_plugin_fallback_paths_aligned() {
 	local installer
 	installer="$(cat "${ROOT}/scripts/install-shell-deps.sh")"
 
+	assert_contains "${installer}" 'install_vivid'
+	assert_contains "${installer}" 'Installing vivid...'
 	assert_contains "${installer}" "\${DATA_HOME}/zsh-autosuggestions/zsh-autosuggestions.zsh"
 	assert_contains "${installer}" "\${DATA_HOME}/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
 }
@@ -87,7 +89,7 @@ exit 1
 EOF
 	chmod +x "${bin_dir}/chezmoi"
 
-	for cmd in mise starship zsh git eza; do
+	for cmd in mise starship zsh git eza vivid; do
 		cat >"${bin_dir}/${cmd}" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -102,6 +104,7 @@ EOF
 set -euo pipefail
 if [[ "${script_name}" == "install-nerd-font" ]]; then
   mkdir -p "${home}/Library/Fonts"
+  printf 'fontdata' >"${home}/Library/Fonts/JetBrainsMonoNerdFontMono-Regular.ttf"
 fi
 printf '%s\n' "${script_name}" >>"${log_file}"
 EOF
@@ -146,7 +149,7 @@ exit 1
 EOF
 	chmod +x "${bin_dir}/chezmoi"
 
-	for cmd in mise starship zsh git eza; do
+	for cmd in mise starship zsh git eza vivid; do
 		cat >"${bin_dir}/${cmd}" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -161,6 +164,7 @@ EOF
 set -euo pipefail
 if [[ "${script_name}" == "install-nerd-font" ]]; then
   mkdir -p "${home}/Library/Fonts"
+  printf 'fontdata' >"${home}/Library/Fonts/JetBrainsMonoNerdFontMono-Regular.ttf"
 fi
 exit 0
 EOF
@@ -215,7 +219,7 @@ exit 1
 EOF
 	chmod +x "${bin_dir}/chezmoi"
 
-	for cmd in mise starship zsh git eza; do
+	for cmd in mise starship zsh git eza vivid; do
 		cat >"${bin_dir}/${cmd}" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -230,6 +234,7 @@ EOF
 set -euo pipefail
 if [[ "${script_name}" == "install-nerd-font" ]]; then
   mkdir -p "${home}/Library/Fonts"
+  printf 'fontdata' >"${home}/Library/Fonts/JetBrainsMonoNerdFontMono-Regular.ttf"
 fi
 exit 0
 EOF
@@ -279,7 +284,7 @@ EOF
 	cat >"${bin_dir}/unzip" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-printf 'fontdata' >"${font_dir}/MesloLGS NF Regular.ttf"
+printf 'fontdata' >"${font_dir}/JetBrainsMonoNerdFontMono-Regular.ttf"
 EOF
 	chmod +x "${bin_dir}/unzip"
 
@@ -294,8 +299,8 @@ EOF
 	HOME="${home}" PATH="${bin_dir}:$PATH" ZSH_SETUP_FORCE_OS="darwin" "${ROOT}/scripts/install-nerd-font.sh"
 
 	assert_dir_exists "${font_dir}"
-	assert_file_exists "${font_dir}/MesloLGS NF Regular.ttf"
-	assert_equals "1" "$(find "${font_dir}" -name 'MesloLGS NF Regular.ttf' | wc -l | tr -d ' ')"
+	assert_file_exists "${font_dir}/JetBrainsMonoNerdFontMono-Regular.ttf"
+	assert_equals "1" "$(find "${font_dir}" -name 'JetBrainsMonoNerdFontMono-Regular.ttf' | wc -l | tr -d ' ')"
 }
 
 test_fix_zsh_permissions_removes_group_write_from_completion_paths() {
@@ -352,6 +357,15 @@ test_zsh_runtime_uses_lazy_mise_activation() {
 	if [[ "${integrations}" == *"${eager_activation}"* ]]; then
 		fail "expected mise activation to be lazy"
 	fi
+}
+
+test_zsh_runtime_exports_ls_colors_with_vivid() {
+	local integrations
+	integrations="$(cat "${ROOT}/home/dot_config/zsh/zshrc.d/20-runtime.zsh")"
+
+	assert_contains "${integrations}" 'command -v vivid'
+	assert_contains "${integrations}" 'vivid generate tokyonight-night'
+	assert_contains "${integrations}" "export LS_COLORS=\"\${_zsh_setup_ls_colors}\""
 }
 
 test_completion_runtime_handles_insecure_dirs_without_prompt() {
@@ -694,7 +708,7 @@ test_uninstall_removes_all_zsh_setup_directories_and_preserves_local_secrets() {
 	printf 'cache\n' >"${cache_root}/zsh/completions/_kubectl"
 	printf 'backup\n' >"${state_root}/zsh-setup/backups/marker"
 	printf 'repo\n' >"${install_home}/README.md"
-	printf 'font\n' >"${font_dir}/MesloLGS NF Regular.ttf"
+	printf 'font\n' >"${font_dir}/JetBrainsMonoNerdFontMono-Regular.ttf"
 	printf 'plugin\n' >"${data_root}/zsh-autosuggestions/zsh-autosuggestions.zsh"
 	printf 'plugin\n' >"${data_root}/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
 	printf 'plugin\n' >"${data_root}/zsh-completions/_example"
@@ -721,7 +735,7 @@ test_uninstall_removes_all_zsh_setup_directories_and_preserves_local_secrets() {
 	assert_not_exists "${install_home}"
 	assert_not_exists "${cache_root}/zsh"
 	assert_not_exists "${state_root}/zsh-setup"
-	assert_not_exists "${font_dir}/MesloLGS NF Regular.ttf"
+	assert_not_exists "${font_dir}/JetBrainsMonoNerdFontMono-Regular.ttf"
 	assert_not_exists "${data_root}/zsh-autosuggestions"
 	assert_not_exists "${data_root}/zsh-syntax-highlighting"
 	assert_not_exists "${data_root}/zsh-completions"
@@ -878,6 +892,7 @@ EOF
 set -euo pipefail
 if [[ "${script_name}" == "install-nerd-font" ]]; then
   mkdir -p "${home}/Library/Fonts"
+  printf 'fontdata' >"${home}/Library/Fonts/JetBrainsMonoNerdFontMono-Regular.ttf"
 fi
 exit 0
 EOF
@@ -1118,11 +1133,12 @@ EOF
 }
 
 test_sync_updates_clean_source() {
-	local sandbox bin_dir install_home home
+	local sandbox bin_dir install_home home log_file
 	sandbox="$(mk_test_tmpdir)"
 	bin_dir="${sandbox}/bin"
 	install_home="${sandbox}/installed-repo"
 	home="${sandbox}/home"
+	log_file="${sandbox}/sync.log"
 	mkdir -p "${bin_dir}" "${install_home}/home" "${home}"
 
 	git init -q "${install_home}"
@@ -1147,9 +1163,28 @@ fi
 EOF
 	chmod +x "${bin_dir}/chezmoi"
 
-	HOME="${home}" ZSH_SETUP_HOME="${install_home}" PATH="${bin_dir}:$PATH" "${ROOT}/scripts/sync.sh"
+	for script_name in install-shell-deps install-nerd-font fix-zsh-permissions configure-iterm2-font doctor; do
+		cat >"${sandbox}/${script_name}.sh" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "${script_name}" >>"${log_file}"
+exit 0
+EOF
+		chmod +x "${sandbox}/${script_name}.sh"
+	done
+
+	HOME="${home}" \
+		ZSH_SETUP_HOME="${install_home}" \
+		PATH="${bin_dir}:$PATH" \
+		ZSH_SETUP_INSTALL_SHELL_DEPS_SCRIPT="${sandbox}/install-shell-deps.sh" \
+		ZSH_SETUP_INSTALL_NERD_FONT_SCRIPT="${sandbox}/install-nerd-font.sh" \
+		ZSH_SETUP_FIX_ZSH_PERMISSIONS_SCRIPT="${sandbox}/fix-zsh-permissions.sh" \
+		ZSH_SETUP_CONFIGURE_ITERM2_FONT_SCRIPT="${sandbox}/configure-iterm2-font.sh" \
+		ZSH_SETUP_DOCTOR_SCRIPT="${sandbox}/doctor.sh" \
+		"${ROOT}/scripts/sync.sh"
 
 	assert_file_exists "${sandbox}/update-ran"
+	assert_equals $'install-shell-deps\ninstall-nerd-font\nfix-zsh-permissions\nconfigure-iterm2-font\ndoctor' "$(cat "${log_file}")"
 }
 
 test_sync_uses_installed_repo_without_chezmoi_source_path() {
@@ -1185,12 +1220,122 @@ fi
 EOF
 	chmod +x "${bin_dir}/chezmoi"
 
+	for script_name in install-shell-deps install-nerd-font fix-zsh-permissions configure-iterm2-font doctor; do
+		cat >"${sandbox}/${script_name}.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+exit 0
+EOF
+		chmod +x "${sandbox}/${script_name}.sh"
+	done
+
 	HOME="${home}" \
 		ZSH_SETUP_HOME="${install_home}" \
 		PATH="${bin_dir}:$PATH" \
+		ZSH_SETUP_INSTALL_SHELL_DEPS_SCRIPT="${sandbox}/install-shell-deps.sh" \
+		ZSH_SETUP_INSTALL_NERD_FONT_SCRIPT="${sandbox}/install-nerd-font.sh" \
+		ZSH_SETUP_FIX_ZSH_PERMISSIONS_SCRIPT="${sandbox}/fix-zsh-permissions.sh" \
+		ZSH_SETUP_CONFIGURE_ITERM2_FONT_SCRIPT="${sandbox}/configure-iterm2-font.sh" \
+		ZSH_SETUP_DOCTOR_SCRIPT="${sandbox}/doctor.sh" \
 		"${ROOT}/scripts/sync.sh"
 
 	assert_file_exists "${sandbox}/apply-ran"
+}
+
+test_sync_fails_when_dependency_alignment_fails() {
+	local sandbox bin_dir install_home home rc
+	sandbox="$(mk_test_tmpdir)"
+	bin_dir="${sandbox}/bin"
+	install_home="${sandbox}/installed-repo"
+	home="${sandbox}/home"
+	mkdir -p "${bin_dir}" "${install_home}/home" "${home}"
+
+	git init -q "${install_home}"
+	(
+		cd "${install_home}"
+		git config user.email test@example.com
+		git config user.name test
+		printf 'tracked\n' >README.md
+		git add README.md
+		git commit -m init >/dev/null
+	)
+
+	cat >"${bin_dir}/chezmoi" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "\$1" == "apply" && " \$* " == *" --source=${install_home}/home "* ]]; then
+  touch "${sandbox}/apply-ran"
+else
+  printf 'unexpected chezmoi args: %s\n' "\$*" >&2
+  exit 1
+fi
+EOF
+	chmod +x "${bin_dir}/chezmoi"
+
+	cat >"${sandbox}/install-shell-deps.sh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+exit 1
+EOF
+	chmod +x "${sandbox}/install-shell-deps.sh"
+
+	set +e
+	HOME="${home}" \
+		ZSH_SETUP_HOME="${install_home}" \
+		PATH="${bin_dir}:$PATH" \
+		ZSH_SETUP_INSTALL_SHELL_DEPS_SCRIPT="${sandbox}/install-shell-deps.sh" \
+		"${ROOT}/scripts/sync.sh"
+	rc=$?
+	set -e
+
+	[[ ${rc} -ne 0 ]] || fail "expected sync to fail when dependency alignment fails"
+	assert_file_exists "${sandbox}/apply-ran"
+}
+
+test_doctor_requires_vivid_and_managed_font_file() {
+	local sandbox home rc output
+	sandbox="$(mk_test_tmpdir)"
+	home="${sandbox}/home"
+	mkdir -p \
+		"${home}/.config/zsh/zshrc.d" \
+		"${home}/.config/zsh/local" \
+		"${home}/.local/bin" \
+		"${home}/.local/state/zsh-setup/updates" \
+		"${home}/.local/state/zsh-setup/backups" \
+		"${home}/Library/Fonts" \
+		"${sandbox}/bin"
+
+	printf '# zsh entrypoint managed by chezmoi\n' >"${home}/.zshrc"
+	printf 'managed-starship\n' >"${home}/.config/starship.toml"
+	printf 'managed\n' >"${home}/.config/zsh/zshrc.d/10-core.zsh"
+	printf '#!/usr/bin/env bash\n' >"${home}/.local/bin/zsh-setup-check-updates"
+	printf '#!/usr/bin/env bash\n' >"${home}/.local/bin/zsh-setup-sync"
+	chmod +x "${home}/.local/bin/zsh-setup-check-updates" "${home}/.local/bin/zsh-setup-sync"
+
+	for cmd in zsh git chezmoi mise starship eza; do
+		cat >"${sandbox}/bin/${cmd}" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+exit 0
+EOF
+		chmod +x "${sandbox}/bin/${cmd}"
+	done
+
+	set +e
+	output="$(
+		HOME="${home}" \
+			XDG_CONFIG_HOME="${home}/.config" \
+			XDG_STATE_HOME="${home}/.local/state" \
+			PATH="${sandbox}/bin:/usr/bin:/bin:/usr/sbin:/sbin" \
+			ZSH_SETUP_FORCE_OS="darwin" \
+			"${ROOT}/scripts/doctor.sh" 2>&1
+	)"
+	rc=$?
+	set -e
+
+	[[ ${rc} -ne 0 ]] || fail "expected doctor to fail when vivid and managed font file are missing"
+	assert_contains "${output}" 'missing command: vivid'
+	assert_contains "${output}" 'missing managed Nerd Font'
 }
 
 test_doctor_requires_managed_zshrc_marker() {
@@ -1211,7 +1356,7 @@ test_doctor_requires_managed_zshrc_marker() {
 	printf '#!/usr/bin/env bash\n' >"${home}/.local/bin/zsh-setup-sync"
 	chmod +x "${home}/.local/bin/zsh-setup-check-updates" "${home}/.local/bin/zsh-setup-sync"
 
-	for cmd in zsh git chezmoi mise starship eza; do
+	for cmd in zsh git chezmoi mise starship eza vivid; do
 		cat >"${sandbox}/bin/${cmd}" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -1245,6 +1390,7 @@ run_test "install-nerd-font is idempotent in user font dir" test_install_nerd_fo
 run_test "fix-zsh-permissions removes group write from completion paths" test_fix_zsh_permissions_removes_group_write_from_completion_paths
 run_test "prune-zsh-modules removes legacy files" test_prune_zsh_modules_removes_legacy_files
 run_test "zsh runtime uses lazy mise activation" test_zsh_runtime_uses_lazy_mise_activation
+run_test "zsh runtime exports LS_COLORS with vivid" test_zsh_runtime_exports_ls_colors_with_vivid
 run_test "completion runtime handles insecure dirs without prompt" test_completion_runtime_handles_insecure_dirs_without_prompt
 run_test "update check runtime refreshes once in background" test_update_check_runtime_refreshes_once_in_background
 run_test "zsh history bindings search by prefix" test_zsh_history_bindings_search_by_prefix
@@ -1270,4 +1416,6 @@ run_test "raw uninstall wrapper delegates to local script" test_raw_uninstall_wr
 run_test "sync refuses dirty source" test_sync_refuses_dirty_source
 run_test "sync updates clean source" test_sync_updates_clean_source
 run_test "sync uses installed repo without chezmoi source-path" test_sync_uses_installed_repo_without_chezmoi_source_path
+run_test "sync fails when dependency alignment fails" test_sync_fails_when_dependency_alignment_fails
+run_test "doctor requires vivid and managed font file" test_doctor_requires_vivid_and_managed_font_file
 run_test "doctor requires managed zshrc marker" test_doctor_requires_managed_zshrc_marker

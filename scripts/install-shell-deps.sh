@@ -123,6 +123,38 @@ install_starship() {
 	warn "starship: could not install; prompt may be unavailable"
 }
 
+install_vivid() {
+	command_exists vivid && return 0
+	log "Installing vivid..."
+	_brew_install vivid && return 0
+	_sys_install vivid && return 0
+	local os arch tag tarball tmp version
+	os="$(detect_os)"
+	arch="$(uname -m)"
+	case "$arch" in
+	arm64 | aarch64) arch="aarch64" ;;
+	*) arch="x86_64" ;;
+	esac
+	tag="$(curl -fsSL https://api.github.com/repos/sharkdp/vivid/releases/latest |
+		grep '"tag_name"' | head -1 | cut -d'"' -f4)"
+	if [[ -z "$tag" ]]; then
+		warn "vivid: could not fetch latest release tag; skipping"
+		return 0
+	fi
+	version="${tag#v}"
+	tarball="vivid-${tag}-${arch}-unknown-linux-musl.tar.gz"
+	if [[ "$os" == "darwin" ]]; then
+		tarball="vivid-${tag}-${arch}-apple-darwin.tar.gz"
+	fi
+	tmp="$(mktemp -d)"
+	curl -fsSL "https://github.com/sharkdp/vivid/releases/download/${tag}/${tarball}" |
+		tar -xz -C "$tmp"
+	mkdir -p "$LOCAL_BIN"
+	mv "$tmp/vivid" "${LOCAL_BIN}/vivid"
+	rm -rf "$tmp"
+	log "vivid ${version} installed to ${LOCAL_BIN}/vivid"
+}
+
 install_zsh_autosuggestions() {
 	# Already installed if sourced by any of the known paths
 	for _p in \
@@ -177,6 +209,7 @@ main() {
 	install_fzf || warn "fzf installation failed; skipping"
 	install_eza || warn "eza installation failed; skipping"
 	install_starship || warn "starship installation failed; skipping"
+	install_vivid || warn "vivid installation failed; skipping"
 	install_zsh_autosuggestions || warn "zsh-autosuggestions installation failed; skipping"
 	install_zsh_syntax_highlighting || warn "zsh-syntax-highlighting installation failed; skipping"
 	install_zsh_completions || warn "zsh-completions installation failed; skipping"

@@ -10,7 +10,7 @@ Fast, reproducible shell environment built around `chezmoi`, `mise`, `Starship`,
 - `tests/`: shell regression tests for migration, sync safety, and K8s prompt classification.
 - `.github/workflows/ci.yml`: macOS + Linux validation for syntax, tests, and `chezmoi` apply idempotency.
 
-Managed zsh runtime enhancements include `zsh-autosuggestions` and `zsh-syntax-highlighting` when those plugins are available. `scripts/install-shell-deps.sh` prefers Homebrew or the system package manager for both, then falls back to shallow clones under `~/.local/share`. If either plugin is missing, shell startup continues without that enhancement.
+Managed zsh runtime enhancements include `zsh-autosuggestions`, `zsh-syntax-highlighting`, and `vivid`-generated `LS_COLORS` when those tools are available. `scripts/install-shell-deps.sh` prefers Homebrew or the system package manager for shell tooling, then falls back to release binaries or shallow clones under `~/.local/share` where needed.
 
 ## Install And Migrate
 
@@ -22,7 +22,7 @@ curl -fsSL https://raw.githubusercontent.com/zubinzhang/zsh-setup/main/install.s
 
 The raw installer prefers a shallow `git clone` into `~/.local/share/zsh-setup/` when `git` is available, then runs the managed install flow. If `git` is unavailable or you explicitly provide `ZSH_SETUP_ARCHIVE_URL`, it falls back to the source archive path. If it detects an existing `~/.zshrc`, `~/.config/starship.toml`, `~/.config/mise/`, `~/.config/zsh/`, or `~/.config/shell/secrets.zsh`, it prints the backup target and asks before migrating. Existing managed installs skip that prompt.
 
-Fresh bootstrap now installs `mise`, `starship`, `eza`, managed zsh plugins, and a single Nerd Font family for prompt glyphs. On first install it also seeds `~/.config/mise/config.toml` from the repository root `mise.toml` so the managed toolset is available from `~` immediately, while preserving later user edits to that file. On macOS and Linux, the installer also repairs common completion-directory permission issues so first-run `compinit` does not stop at an interactive security prompt. If you want macOS iTerm2 font wiring during install, run `install.sh` with `ZSH_SETUP_CONFIGURE_ITERM2_FONT=1`.
+Fresh bootstrap now installs `mise`, `starship`, `eza`, `vivid`, managed zsh plugins, and the managed `JetBrainsMono Nerd Font Mono` family for prompt glyphs. On first install it also seeds `~/.config/mise/config.toml` from the repository root `mise.toml` so the managed toolset is available from `~` immediately, while preserving later user edits to that file. On macOS and Linux, the installer also repairs common completion-directory permission issues so first-run `compinit` does not stop at an interactive security prompt. If you want macOS iTerm2 font wiring during install, run `install.sh` with `ZSH_SETUP_CONFIGURE_ITERM2_FONT=1`.
 
 For non-interactive migration, pass `--yes`:
 
@@ -51,7 +51,7 @@ To stop managing the shell with this repo but keep backups and local overlays:
 curl -fsSL https://raw.githubusercontent.com/zubinzhang/zsh-setup/main/uninstall.sh | bash
 ```
 
-This removes the managed `~/.zshrc`, `~/.config/zsh/zshrc.d`, `~/.config/mise`, `~/.config/starship.toml`, update-check wrappers, sync wrappers, any legacy background sync task, the managed checkout under `~/.local/share/zsh-setup`, zsh cache/state directories, fallback plugin clones under `~/.local/share`, and the repo-managed Meslo Nerd Font files. It preserves `~/.config/zsh/local/` so local secrets and overrides survive uninstall. `rollback.sh` still preserves backups internally so restore continues to work.
+This removes the managed `~/.zshrc`, `~/.config/zsh/zshrc.d`, `~/.config/mise`, `~/.config/starship.toml`, update-check wrappers, sync wrappers, any legacy background sync task, the managed checkout under `~/.local/share/zsh-setup`, zsh cache/state directories, fallback plugin clones under `~/.local/share`, and the repo-managed JetBrainsMono Nerd Font Mono files. It preserves `~/.config/zsh/local/` so local secrets and overrides survive uninstall. `rollback.sh` still preserves backups internally so restore continues to work.
 
 ## Manual Sync
 
@@ -60,6 +60,8 @@ If you want to apply the latest upstream dotfiles on demand instead of waiting f
 ```bash
 curl -fsSL https://raw.githubusercontent.com/zubinzhang/zsh-setup/main/sync.sh | bash
 ```
+
+`sync.sh` is a convergence command: after fast-forwarding the managed repo and applying dotfiles, it re-runs shell dependency install, managed font install, permission repair, and `doctor`. If one of those required steps fails, `sync.sh` exits non-zero.
 
 ## Day-2 commands
 
@@ -72,7 +74,7 @@ bash scripts/benchmark-shell.sh 10
 
 Update detection runs during shell startup through `~/.local/bin/zsh-setup-check-updates`: if the local `chezmoi` source is behind its upstream, the next shell startup asks whether to upgrade now. Nothing is auto-applied without confirmation, and dirty source trees still block the upgrade path.
 
-Bootstrap installs `chezmoi` itself. On first install, bootstrap copies the repository root `mise.toml` to `~/.config/mise/config.toml` when that file does not already exist, so `bun`, `go`, `node`, `python`, `yarn`, `helm`, `kubectl`, and `starship` resolve globally through `mise`. Later user edits are preserved, and the seeded toolset does not include `chezmoi` or `gh`.
+Bootstrap installs `chezmoi` itself. On first install, bootstrap copies the repository root `mise.toml` to `~/.config/mise/config.toml` when that file does not already exist, so `bun`, `go`, `node`, `python`, `yarn`, `helm`, `kubectl`, and `starship` resolve globally through `mise`. Later user edits are preserved, and the seeded toolset does not include `chezmoi` or `gh`. Runtime directory colors are generated with `vivid generate tokyonight-night`, and `eza` uses that environment when present.
 
 ## Local-only secrets and overrides
 

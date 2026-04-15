@@ -28,6 +28,15 @@ check_path() {
 	fi
 }
 
+check_managed_nerd_font() {
+	if managed_nerd_font_exists; then
+		log "ok: found managed Nerd Font in $(font_home)"
+	else
+		warn "missing managed Nerd Font in $(font_home)"
+		failures=$((failures + 1))
+	fi
+}
+
 check_managed_zshrc() {
 	local marker
 	marker="$(managed_zshrc_marker)"
@@ -46,9 +55,11 @@ main() {
 	check_command mise
 	check_command starship
 	check_command eza
+	check_command vivid
 
 	check_managed_zshrc
 	check_path "$(font_home)"
+	check_managed_nerd_font
 	check_path "$(config_home)/starship.toml"
 	check_path "$(config_home)/zsh/zshrc.d"
 	check_path "$(config_home)/zsh/zshrc.d/10-core.zsh"

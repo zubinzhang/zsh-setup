@@ -70,11 +70,26 @@ font_home() {
 }
 
 nerd_font_family() {
-	printf '%s\n' "MesloLGS NF"
+	printf '%s\n' "JetBrainsMono Nerd Font Mono"
 }
 
 nerd_font_archive_url() {
-	printf '%s\n' "${ZSH_SETUP_NERD_FONT_URL:-https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/Meslo.zip}"
+	printf '%s\n' "${ZSH_SETUP_NERD_FONT_URL:-https://github.com/ryanoasis/nerd-fonts/releases/download/v3.4.0/JetBrainsMono.zip}"
+}
+
+managed_nerd_font_find() {
+	find "$(font_home)" -maxdepth 1 -type f \
+		\( -name 'JetBrainsMonoNerdFontMono*' -o -name 'JetBrainsMono*NerdFont*Mono*' \)
+}
+
+managed_nerd_font_exists() {
+	managed_nerd_font_find | grep -q .
+}
+
+delete_managed_nerd_font_files() {
+	find "$(font_home)" -maxdepth 1 -type f \
+		\( -name 'JetBrainsMonoNerdFontMono*' -o -name 'JetBrainsMono*NerdFont*Mono*' \) \
+		-delete
 }
 
 zsh_setup_install_home() {

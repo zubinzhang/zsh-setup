@@ -12,6 +12,12 @@ if command -v mise >/dev/null 2>&1; then
   }
 fi
 
+if command -v vivid >/dev/null 2>&1; then
+  _zsh_setup_ls_colors="$(vivid generate tokyonight-night 2>/dev/null || true)"
+  [[ -n "${_zsh_setup_ls_colors}" ]] && export LS_COLORS="${_zsh_setup_ls_colors}"
+  unset _zsh_setup_ls_colors
+fi
+
 # Optional suggestion defaults stay conservative and do not block shell startup.
 [[ -n "${ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE+x}" ]] || ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=244'
 [[ -n "${ZSH_AUTOSUGGEST_USE_ASYNC+x}" ]] || ZSH_AUTOSUGGEST_USE_ASYNC=1

@@ -44,7 +44,7 @@ remove_managed_files() {
 		"$(data_home)/zsh-completions" \
 		"$(data_home)/fzf"
 
-	find "$(font_home)" -maxdepth 1 -type f \( -name 'MesloLGS NF*' -o -name 'MesloLGSNerdFont*' \) -delete 2>/dev/null || true
+	delete_managed_nerd_font_files 2>/dev/null || true
 }
 
 main() {

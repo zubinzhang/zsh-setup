@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/common.sh"
 
 font_is_installed() {
-	find "$(font_home)" -maxdepth 1 -type f \( -name 'MesloLGS NF*' -o -name 'MesloLGSNerdFont*' \) | grep -q .
+	managed_nerd_font_exists
 }
 
 main() {
@@ -25,7 +25,7 @@ main() {
 
 	tmpdir="$(mktemp -d)"
 	trap 'rm -rf "${tmpdir:-}"' EXIT
-	archive="${tmpdir}/Meslo.zip"
+	archive="${tmpdir}/JetBrainsMono.zip"
 
 	curl -fsSL "$(nerd_font_archive_url)" -o "${archive}"
 	unzip -oq "${archive}" -d "${font_dir}"
