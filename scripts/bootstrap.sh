@@ -27,6 +27,13 @@ apply_dotfiles() {
 	fi
 }
 
+install_shell_deps() {
+	local script="${SCRIPT_DIR}/install-shell-deps.sh"
+	if [[ -x "$script" ]]; then
+		"$script" || warn "shell dependency installation failed; continuing"
+	fi
+}
+
 install_repo_tools() {
 	if ! command_exists mise; then
 		return 0
@@ -49,6 +56,7 @@ main() {
 	install_chezmoi
 	apply_dotfiles
 	install_mise
+	install_shell_deps
 	install_repo_tools || warn "mise install failed; continuing with rendered dotfiles"
 
 	if [[ -x "${ZSH_SETUP_REPO_ROOT}/scripts/unregister-sync-task.sh" ]]; then
