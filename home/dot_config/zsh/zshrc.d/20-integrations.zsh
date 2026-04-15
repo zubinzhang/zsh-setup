@@ -5,7 +5,7 @@ if command -v mise >/dev/null 2>&1; then
 fi
 
 # Optional suggestion defaults stay conservative and do not block shell startup.
-[[ -n "${ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE+x}" ]] || ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=8'
+[[ -n "${ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE+x}" ]] || ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=244'
 [[ -n "${ZSH_AUTOSUGGEST_USE_ASYNC+x}" ]] || ZSH_AUTOSUGGEST_USE_ASYNC=1
 
 # zsh-autosuggestions

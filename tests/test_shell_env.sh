@@ -39,7 +39,7 @@ test_zsh_integrations_configure_optional_plugins_in_order() {
 	local integrations
 	integrations="$(cat "${ROOT}/home/dot_config/zsh/zshrc.d/20-integrations.zsh")"
 
-	assert_contains "${integrations}" 'ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE'
+	assert_contains "${integrations}" "ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE='fg=244'"
 	assert_contains "${integrations}" 'ZSH_AUTOSUGGEST_USE_ASYNC'
 	assert_contains "${integrations}" 'zsh-autosuggestions/zsh-autosuggestions.zsh'
 	assert_contains "${integrations}" 'zsh-syntax-highlighting/zsh-syntax-highlighting.zsh'
@@ -59,6 +59,18 @@ test_install_shell_deps_keeps_plugin_fallback_paths_aligned() {
 
 	assert_contains "${installer}" "\${DATA_HOME}/zsh-autosuggestions/zsh-autosuggestions.zsh"
 	assert_contains "${installer}" "\${DATA_HOME}/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+}
+
+test_zsh_history_bindings_search_by_prefix() {
+	local history_bindings
+	history_bindings="$(cat "${ROOT}/home/dot_config/zsh/zshrc.d/15-history.zsh")"
+
+	assert_contains "${history_bindings}" "bindkey '^[[A' up-line-or-beginning-search"
+	assert_contains "${history_bindings}" "bindkey '^[[B' down-line-or-beginning-search"
+	assert_contains "${history_bindings}" "bindkey '^[OA' up-line-or-beginning-search"
+	assert_contains "${history_bindings}" "bindkey '^[OB' down-line-or-beginning-search"
+	assert_contains "${history_bindings}" "bindkey -M viins '^[[A' up-line-or-beginning-search"
+	assert_contains "${history_bindings}" "bindkey -M viins '^[[B' down-line-or-beginning-search"
 }
 
 test_migrate_backs_up_files_and_copies_secrets_overlay() {
@@ -836,6 +848,7 @@ EOF
 run_test "kube prompt marks prod context" test_kube_prompt_marks_prod_context
 run_test "zsh integrations configure optional plugins in order" test_zsh_integrations_configure_optional_plugins_in_order
 run_test "install-shell-deps keeps plugin fallback paths aligned" test_install_shell_deps_keeps_plugin_fallback_paths_aligned
+run_test "zsh history bindings search by prefix" test_zsh_history_bindings_search_by_prefix
 run_test "migrate backs up files and copies secrets overlay" test_migrate_backs_up_files_and_copies_secrets_overlay
 run_test "rollback restores latest backup and original files" test_rollback_restores_latest_backup_and_original_files
 run_test "uninstall removes managed files and preserves local overlay" test_uninstall_removes_managed_files_and_preserves_local_overlay
