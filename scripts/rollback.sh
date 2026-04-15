@@ -33,7 +33,7 @@ restore_backup() {
 
 main() {
 	if [[ -x "${SCRIPT_DIR}/uninstall.sh" ]]; then
-		"${SCRIPT_DIR}/uninstall.sh"
+		ZSH_SETUP_PRESERVE_BACKUPS=1 "${SCRIPT_DIR}/uninstall.sh"
 	fi
 	restore_backup
 }

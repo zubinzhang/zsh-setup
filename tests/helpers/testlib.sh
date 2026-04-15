@@ -31,6 +31,11 @@ assert_file_exists() {
 	[[ -e "${path}" ]] || fail "expected file to exist: ${path}"
 }
 
+assert_dir_exists() {
+	local path="$1"
+	[[ -d "${path}" ]] || fail "expected directory to exist: ${path}"
+}
+
 assert_not_exists() {
 	local path="$1"
 	[[ ! -e "${path}" ]] || fail "expected path to be absent: ${path}"

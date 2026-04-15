@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Install shell tool dependencies: fzf, eza, starship, zsh plugins
+# Install shell tool dependencies: fzf, eza, starship, and managed zsh plugins.
+# The repo-managed Nerd Font is installed by scripts/install-nerd-font.sh.
 # Strategy: brew (macOS/Linux) > system package manager > official install scripts / git clone
 
 set -euo pipefail

@@ -1,7 +1,15 @@
 [[ -r "$HOME/.iterm2_shell_integration.zsh" ]] && source "$HOME/.iterm2_shell_integration.zsh"
 
 if command -v mise >/dev/null 2>&1; then
-  eval "$(mise activate zsh)"
+  _zsh_setup_activate_mise() {
+    unfunction mise 2>/dev/null || true
+    eval "$(command mise activate zsh)"
+  }
+
+  mise() {
+    _zsh_setup_activate_mise
+    mise "$@"
+  }
 fi
 
 # Optional suggestion defaults stay conservative and do not block shell startup.

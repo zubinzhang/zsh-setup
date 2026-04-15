@@ -32,10 +32,50 @@ apply_dotfiles() {
 }
 
 install_shell_deps() {
-	local script="${SCRIPT_DIR}/install-shell-deps.sh"
+	local script="${ZSH_SETUP_INSTALL_SHELL_DEPS_SCRIPT:-${SCRIPT_DIR}/install-shell-deps.sh}"
 	if [[ -x "$script" ]]; then
 		"$script" || warn "shell dependency installation failed; continuing"
 	fi
+}
+
+install_nerd_font() {
+	local script="${ZSH_SETUP_INSTALL_NERD_FONT_SCRIPT:-${SCRIPT_DIR}/install-nerd-font.sh}"
+	if [[ -x "${script}" ]]; then
+		"${script}" || warn "Nerd Font installation failed; continuing"
+	fi
+}
+
+fix_zsh_permissions() {
+	local script="${ZSH_SETUP_FIX_ZSH_PERMISSIONS_SCRIPT:-${SCRIPT_DIR}/fix-zsh-permissions.sh}"
+	if [[ -x "${script}" ]]; then
+		"${script}" || warn "zsh permission repair failed; continuing"
+	fi
+}
+
+configure_iterm2_font() {
+	local script="${ZSH_SETUP_CONFIGURE_ITERM2_FONT_SCRIPT:-${SCRIPT_DIR}/configure-iterm2-font.sh}"
+	if [[ -x "${script}" ]]; then
+		"${script}" || warn "iTerm2 font setup failed; continuing"
+	fi
+}
+
+prune_zsh_modules() {
+	local script="${ZSH_SETUP_PRUNE_ZSH_MODULES_SCRIPT:-${SCRIPT_DIR}/prune-zsh-modules.sh}"
+	if [[ -x "${script}" ]]; then
+		"${script}" || warn "zsh module cleanup failed; continuing"
+	fi
+}
+
+seed_global_mise_config() {
+	local source_file target_file
+	source_file="$(repo_mise_config_file)"
+	target_file="$(mise_config_file)"
+
+	[[ -f "${source_file}" ]] || return 0
+	[[ -f "${target_file}" ]] && return 0
+
+	mkdir -p "$(dirname "${target_file}")"
+	cp "${source_file}" "${target_file}"
 }
 
 install_repo_tools() {
@@ -60,8 +100,13 @@ main() {
 	install_chezmoi
 	apply_dotfiles
 	install_mise
+	seed_global_mise_config
 	install_shell_deps
+	install_nerd_font
+	fix_zsh_permissions
+	configure_iterm2_font
 	install_repo_tools || warn "mise install failed; continuing with rendered dotfiles"
+	prune_zsh_modules
 
 	if [[ -x "${ZSH_SETUP_REPO_ROOT}/scripts/unregister-sync-task.sh" ]]; then
 		"${ZSH_SETUP_REPO_ROOT}/scripts/unregister-sync-task.sh" || warn "legacy sync task cleanup failed"

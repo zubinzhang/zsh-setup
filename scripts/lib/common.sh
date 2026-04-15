@@ -46,6 +46,37 @@ data_home() {
 	printf '%s\n' "${XDG_DATA_HOME:-${HOME}/.local/share}"
 }
 
+mise_config_dir() {
+	printf '%s\n' "$(config_home)/mise"
+}
+
+mise_config_file() {
+	printf '%s\n' "$(mise_config_dir)/config.toml"
+}
+
+repo_mise_config_file() {
+	printf '%s\n' "${ZSH_SETUP_REPO_ROOT}/mise.toml"
+}
+
+font_home() {
+	case "$(detect_os)" in
+	darwin)
+		printf '%s\n' "${HOME}/Library/Fonts"
+		;;
+	*)
+		printf '%s\n' "$(data_home)/fonts"
+		;;
+	esac
+}
+
+nerd_font_family() {
+	printf '%s\n' "MesloLGS NF"
+}
+
+nerd_font_archive_url() {
+	printf '%s\n' "${ZSH_SETUP_NERD_FONT_URL:-https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/Meslo.zip}"
+}
+
 zsh_setup_install_home() {
 	printf '%s\n' "${ZSH_SETUP_HOME:-$(data_home)/zsh-setup}"
 }

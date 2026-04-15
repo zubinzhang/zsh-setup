@@ -28,6 +28,9 @@ main() {
 	fi
 
 	chezmoi apply --force --source="${source_dir}"
+	if [[ -x "${SCRIPT_DIR}/prune-zsh-modules.sh" ]]; then
+		"${SCRIPT_DIR}/prune-zsh-modules.sh"
+	fi
 }
 
 main "$@"

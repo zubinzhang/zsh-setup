@@ -45,10 +45,13 @@ main() {
 	check_command chezmoi
 	check_command mise
 	check_command starship
+	check_command eza
 
 	check_managed_zshrc
+	check_path "$(font_home)"
 	check_path "$(config_home)/starship.toml"
 	check_path "$(config_home)/zsh/zshrc.d"
+	check_path "$(config_home)/zsh/zshrc.d/10-core.zsh"
 	check_path "$(config_home)/zsh/local"
 	check_path "${HOME}/.local/bin/zsh-setup-check-updates"
 	check_path "${HOME}/.local/bin/zsh-setup-sync"

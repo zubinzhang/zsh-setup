@@ -62,8 +62,13 @@ alias gst='git status'
 alias gsw='git switch'
 alias gswc='git switch -c'
 
-# ls aliases
-if [[ "$OSTYPE" == darwin* ]]; then
+# ls aliases — prefer eza for richer file/dir distinction
+if command -v eza >/dev/null 2>&1; then
+  alias ls='eza --icons --group-directories-first'
+  alias ll='eza -lh --icons --group-directories-first'
+  alias la='eza -lah --icons --group-directories-first'
+  alias lt='eza --tree --icons --group-directories-first'
+elif [[ "$OSTYPE" == darwin* ]]; then
   alias ls='ls -G'
   alias ll='ls -lhG'
   alias la='ls -lahG'
