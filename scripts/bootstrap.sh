@@ -18,6 +18,10 @@ ensure_runtime_dirs() {
 }
 
 apply_dotfiles() {
+	# Clear chezmoi's entry state so files modified by other tools (e.g. mise)
+	# since the last apply don't trigger an interactive conflict prompt.
+	chezmoi state delete-bucket --bucket=entryState >/dev/null 2>&1 || true
+
 	if [[ -d "${ZSH_SETUP_REPO_ROOT}/home" ]]; then
 		log "Applying dotfiles from local source"
 		chezmoi apply --force --source="${ZSH_SETUP_REPO_ROOT}/home"
