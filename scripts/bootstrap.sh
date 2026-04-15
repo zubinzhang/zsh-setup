@@ -18,12 +18,23 @@ ensure_runtime_dirs() {
 }
 
 apply_dotfiles() {
+	# Clear chezmoi's entry state so files modified by other tools (e.g. mise)
+	# since the last apply don't trigger an interactive conflict prompt.
+	chezmoi state delete-bucket --bucket=entryState >/dev/null 2>&1 || true
+
 	if [[ -d "${ZSH_SETUP_REPO_ROOT}/home" ]]; then
 		log "Applying dotfiles from local source"
 		chezmoi apply --force --source="${ZSH_SETUP_REPO_ROOT}/home"
 	else
 		log "Applying dotfiles from ${DEFAULT_REMOTE_REPO}"
 		chezmoi init --apply --force "${DEFAULT_REMOTE_REPO}"
+	fi
+}
+
+install_shell_deps() {
+	local script="${SCRIPT_DIR}/install-shell-deps.sh"
+	if [[ -x "$script" ]]; then
+		"$script" || warn "shell dependency installation failed; continuing"
 	fi
 }
 
@@ -49,6 +60,7 @@ main() {
 	install_chezmoi
 	apply_dotfiles
 	install_mise
+	install_shell_deps
 	install_repo_tools || warn "mise install failed; continuing with rendered dotfiles"
 
 	if [[ -x "${ZSH_SETUP_REPO_ROOT}/scripts/unregister-sync-task.sh" ]]; then
