@@ -68,10 +68,14 @@ if command -v eza >/dev/null 2>&1; then
   alias ll='eza -lh --icons --group-directories-first'
   alias la='eza -lah --icons --group-directories-first'
   alias lt='eza --tree --icons --group-directories-first'
-else
+elif [[ "$OSTYPE" == darwin* ]]; then
   alias ls='ls -G'
   alias ll='ls -lhG'
   alias la='ls -lahG'
+else
+  alias ls='ls --color=auto'
+  alias ll='ls -lh --color=auto'
+  alias la='ls -lah --color=auto'
 fi
 
 # Reload zshrc without reopening terminal
