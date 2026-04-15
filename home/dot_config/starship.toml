@@ -3,8 +3,9 @@
 format = """
 $time \
 $username\
+$hostname\
 $directory\
-$git_branch \
+$git_branch\
 $cmd_duration \
 $character
 ❯ """
@@ -27,7 +28,8 @@ success_symbol = "[✨](bold green)"
 
 [cmd_duration]
 min_time = 0  # Show command duration over 10,000 milliseconds (=10 sec)
-format = " took [$duration]($style)"
+format = " <took [$duration]($style)>"
+style = "bold green"
 
 [directory]
 truncation_length = 0
@@ -62,11 +64,11 @@ style = "bright-white"
 format = "$all_status$ahead_behind"
 
 [hostname]
-ssh_only = false
-format = "<[$hostname]($style)>"
+ssh_only = true
+format = "@[$hostname]($style)"
 trim_at = "-"
 style = "bold dimmed white"
-disabled = true
+disabled = false
 
 [julia]
 format = "[$symbol$version]($style) "
