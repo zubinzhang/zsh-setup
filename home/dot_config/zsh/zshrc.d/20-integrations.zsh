@@ -20,3 +20,8 @@ for _f in \
   [[ -f "$_f" ]] && { source "$_f"; break; }
 done
 unset _f
+
+# fzf — fuzzy completion and key bindings (Ctrl+R, Ctrl+T, Alt+C)
+if command -v fzf >/dev/null 2>&1; then
+  eval "$(fzf --zsh)"
+fi
