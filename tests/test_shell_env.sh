@@ -35,6 +35,32 @@ EOF
 	assert_contains "${output}" 'ZSH_SETUP_KUBE_STYLE=danger'
 }
 
+test_zsh_integrations_configure_optional_plugins_in_order() {
+	local integrations
+	integrations="$(cat "${ROOT}/home/dot_config/zsh/zshrc.d/20-integrations.zsh")"
+
+	assert_contains "${integrations}" 'ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE'
+	assert_contains "${integrations}" 'ZSH_AUTOSUGGEST_USE_ASYNC'
+	assert_contains "${integrations}" 'zsh-autosuggestions/zsh-autosuggestions.zsh'
+	assert_contains "${integrations}" 'zsh-syntax-highlighting/zsh-syntax-highlighting.zsh'
+
+	if [[ "${integrations}" != *'ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE'*'zsh-autosuggestions/zsh-autosuggestions.zsh'* ]]; then
+		fail "expected autosuggestion defaults before plugin source"
+	fi
+
+	if [[ "${integrations}" != *'zsh-autosuggestions/zsh-autosuggestions.zsh'*'zsh-syntax-highlighting/zsh-syntax-highlighting.zsh'* ]]; then
+		fail "expected syntax highlighting to load after autosuggestions"
+	fi
+}
+
+test_install_shell_deps_keeps_plugin_fallback_paths_aligned() {
+	local installer
+	installer="$(cat "${ROOT}/scripts/install-shell-deps.sh")"
+
+	assert_contains "${installer}" "\${DATA_HOME}/zsh-autosuggestions/zsh-autosuggestions.zsh"
+	assert_contains "${installer}" "\${DATA_HOME}/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+}
+
 test_migrate_backs_up_files_and_copies_secrets_overlay() {
 	local sandbox home output_dir
 	sandbox="$(mk_test_tmpdir)"
@@ -447,7 +473,7 @@ test_bootstrap_uses_apply_for_local_home_source() {
 #!/usr/bin/env bash
 set -euo pipefail
 printf '%s\n' "\$*" >>"${log_file}"
-if [[ "\$1" == "apply" && "\$2" == "--source=${ROOT}/home" ]]; then
+if [[ "\$1" == "apply" && " \$* " == *" --source=${ROOT}/home "* ]]; then
   mkdir -p "${home}/.config/zsh/zshrc.d" "${home}/.config/zsh/local" "${home}/.local/bin" "${home}/.local/state/zsh-setup/updates" "${home}/.local/state/zsh-setup/backups"
   printf '# zsh entrypoint managed by chezmoi\n' >"${home}/.zshrc"
   printf 'managed-starship\n' >"${home}/.config/starship.toml"
@@ -470,7 +496,7 @@ EOF
 
 	PATH="${bin_dir}:$PATH" HOME="${home}" XDG_CONFIG_HOME="${home}/.config" XDG_STATE_HOME="${home}/.local/state" "${ROOT}/scripts/bootstrap.sh"
 
-	assert_contains "$(cat "${log_file}")" "apply --source=${ROOT}/home"
+	assert_contains "$(cat "${log_file}")" "--source=${ROOT}/home"
 	if grep -Fq 'init --apply' "${log_file}"; then
 		fail "expected bootstrap to use chezmoi apply for the local home source"
 	fi
@@ -478,8 +504,8 @@ EOF
 
 test_managed_mise_config_excludes_chezmoi_and_gh() {
 	local config
-	config="$(cat "${ROOT}/home/dot_config/mise/config.toml")"
-	if [[ "${config}" == *'chezmoi'* ]]; then
+	config="$(cat "${ROOT}/home/run_onchange_before_setup-mise-config.sh")"
+	if [[ "${config}" == *$'\nchezmoi = '* || "${config}" == *$'\r\nchezmoi = '* ]]; then
 		fail "expected managed mise config to exclude chezmoi"
 	fi
 	if [[ "${config}" == *$'\ngh = '* || "${config}" == *$'\r\ngh = '* ]]; then
@@ -710,7 +736,7 @@ test_sync_updates_clean_source() {
 	cat >"${bin_dir}/chezmoi" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-if [[ "\$1" == "apply" && "\$2" == "--source=${install_home}/home" ]]; then
+if [[ "\$1" == "apply" && " \$* " == *" --source=${install_home}/home "* ]]; then
   touch "${sandbox}/update-ran"
 else
   printf 'unexpected chezmoi args: %s\n' "\$*" >&2
@@ -748,7 +774,7 @@ set -euo pipefail
 if [[ "\$1" == "source-path" ]]; then
   printf 'source-path should not be called\n' >&2
   exit 1
-elif [[ "\$1" == "apply" && "\$2" == "--source=${install_home}/home" ]]; then
+elif [[ "\$1" == "apply" && " \$* " == *" --source=${install_home}/home "* ]]; then
   touch "${sandbox}/apply-ran"
 else
   printf 'unexpected chezmoi args: %s\n' "\$*" >&2
@@ -808,6 +834,8 @@ EOF
 }
 
 run_test "kube prompt marks prod context" test_kube_prompt_marks_prod_context
+run_test "zsh integrations configure optional plugins in order" test_zsh_integrations_configure_optional_plugins_in_order
+run_test "install-shell-deps keeps plugin fallback paths aligned" test_install_shell_deps_keeps_plugin_fallback_paths_aligned
 run_test "migrate backs up files and copies secrets overlay" test_migrate_backs_up_files_and_copies_secrets_overlay
 run_test "rollback restores latest backup and original files" test_rollback_restores_latest_backup_and_original_files
 run_test "uninstall removes managed files and preserves local overlay" test_uninstall_removes_managed_files_and_preserves_local_overlay

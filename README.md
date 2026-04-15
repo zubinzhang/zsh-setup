@@ -10,6 +10,8 @@ Fast, reproducible shell environment built around `chezmoi`, `mise`, `Starship`,
 - `tests/`: shell regression tests for migration, sync safety, and K8s prompt classification.
 - `.github/workflows/ci.yml`: macOS + Linux validation for syntax, tests, and `chezmoi` apply idempotency.
 
+Managed zsh runtime enhancements include `zsh-autosuggestions` and `zsh-syntax-highlighting` when those plugins are available. `scripts/install-shell-deps.sh` prefers Homebrew or the system package manager for both, then falls back to shallow clones under `~/.local/share`. If either plugin is missing, shell startup continues without that enhancement.
+
 ## Install And Migrate
 
 Fresh restore and migration now use the same entrypoint:
