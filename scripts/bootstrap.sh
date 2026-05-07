@@ -66,6 +66,13 @@ prune_zsh_modules() {
 	fi
 }
 
+set_default_shell() {
+	local script="${ZSH_SETUP_SET_DEFAULT_SHELL_SCRIPT:-${SCRIPT_DIR}/set-default-shell.sh}"
+	if [[ -x "${script}" ]]; then
+		"${script}" || warn "default shell configuration failed; continuing"
+	fi
+}
+
 seed_global_mise_config() {
 	local source_file target_file
 	source_file="$(repo_mise_config_file)"
@@ -107,6 +114,7 @@ main() {
 	configure_iterm2_font
 	install_repo_tools || warn "mise install failed; continuing with rendered dotfiles"
 	prune_zsh_modules
+	set_default_shell
 
 	if [[ -x "${ZSH_SETUP_REPO_ROOT}/scripts/unregister-sync-task.sh" ]]; then
 		"${ZSH_SETUP_REPO_ROOT}/scripts/unregister-sync-task.sh" || warn "legacy sync task cleanup failed"
@@ -120,6 +128,7 @@ main() {
 	if [[ -x "${ZSH_SETUP_REPO_ROOT}/scripts/doctor.sh" ]]; then
 		"${ZSH_SETUP_REPO_ROOT}/scripts/doctor.sh"
 	fi
+	log "Run 'exec zsh' or open a new terminal to start using your new shell."
 }
 
 main "$@"

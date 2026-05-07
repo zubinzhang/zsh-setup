@@ -1,5 +1,10 @@
 # zsh entrypoint managed by chezmoi
 
+if [ -z "${ZSH_VERSION}" ]; then
+  printf '[zsh-setup] .zshrc must be loaded in zsh. Run: exec zsh\n' >&2
+  return 1 2>/dev/null || exit 1
+fi
+
 export PATH="$HOME/.local/bin:$HOME/.local/share/mise/shims:$PATH"
 export ZSH_SETUP_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}/zsh"
 export ZSH_SETUP_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}/zsh-setup"

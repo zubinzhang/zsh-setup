@@ -1380,6 +1380,96 @@ EOF
 	assert_contains "${output}" 'managed zshrc marker'
 }
 
+test_set_default_shell_calls_chsh_when_not_zsh() {
+	local sandbox bin_dir output
+	sandbox="$(mk_test_tmpdir)"
+	bin_dir="${sandbox}/bin"
+	mkdir -p "${bin_dir}"
+
+	cat >"${bin_dir}/zsh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+	chmod +x "${bin_dir}/zsh"
+
+	cat >"${bin_dir}/chsh" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >"${sandbox}/chsh.log"
+exit 0
+EOF
+	chmod +x "${bin_dir}/chsh"
+
+	output="$(
+		SHELL=/bin/bash \
+		PATH="${bin_dir}:$PATH" \
+		"${ROOT}/scripts/set-default-shell.sh"
+	)"
+
+	assert_file_exists "${sandbox}/chsh.log"
+	assert_contains "$(cat "${sandbox}/chsh.log")" "-s ${bin_dir}/zsh"
+	assert_contains "${output}" 'Default shell set to zsh'
+}
+
+test_set_default_shell_warns_when_chsh_fails() {
+	local sandbox bin_dir output
+	sandbox="$(mk_test_tmpdir)"
+	bin_dir="${sandbox}/bin"
+	mkdir -p "${bin_dir}"
+
+	cat >"${bin_dir}/zsh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+	chmod +x "${bin_dir}/zsh"
+
+	cat >"${bin_dir}/chsh" <<'EOF'
+#!/usr/bin/env bash
+exit 1
+EOF
+	chmod +x "${bin_dir}/chsh"
+
+	output="$(
+		SHELL=/bin/bash \
+		PATH="${bin_dir}:$PATH" \
+		"${ROOT}/scripts/set-default-shell.sh" 2>&1
+	)"
+
+	assert_contains "${output}" 'chsh -s'
+}
+
+test_set_default_shell_skips_when_already_zsh() {
+	local sandbox bin_dir
+	sandbox="$(mk_test_tmpdir)"
+	bin_dir="${sandbox}/bin"
+	mkdir -p "${bin_dir}"
+
+	cat >"${bin_dir}/zsh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+	chmod +x "${bin_dir}/zsh"
+
+	cat >"${bin_dir}/chsh" <<EOF
+#!/usr/bin/env bash
+printf 'called\n' >"${sandbox}/chsh.log"
+exit 0
+EOF
+	chmod +x "${bin_dir}/chsh"
+
+	SHELL=/usr/bin/zsh \
+	PATH="${bin_dir}:$PATH" \
+	"${ROOT}/scripts/set-default-shell.sh"
+
+	assert_not_exists "${sandbox}/chsh.log"
+}
+
+test_zshrc_has_bash_guard() {
+	local zshrc
+	zshrc="$(cat "${ROOT}/home/dot_zshrc")"
+	assert_contains "${zshrc}" 'ZSH_VERSION'
+	assert_contains "${zshrc}" 'exec zsh'
+}
+
 run_test "kube prompt marks prod context" test_kube_prompt_marks_prod_context
 run_test "zsh integrations configure optional plugins in order" test_zsh_integrations_configure_optional_plugins_in_order
 run_test "install-shell-deps keeps plugin fallback paths aligned" test_install_shell_deps_keeps_plugin_fallback_paths_aligned
@@ -1419,3 +1509,7 @@ run_test "sync uses installed repo without chezmoi source-path" test_sync_uses_i
 run_test "sync fails when dependency alignment fails" test_sync_fails_when_dependency_alignment_fails
 run_test "doctor requires vivid and managed font file" test_doctor_requires_vivid_and_managed_font_file
 run_test "doctor requires managed zshrc marker" test_doctor_requires_managed_zshrc_marker
+run_test "set-default-shell calls chsh when shell is not zsh" test_set_default_shell_calls_chsh_when_not_zsh
+run_test "set-default-shell warns when chsh fails" test_set_default_shell_warns_when_chsh_fails
+run_test "set-default-shell skips chsh when shell is already zsh" test_set_default_shell_skips_when_already_zsh
+run_test "dot_zshrc has bash guard with exec zsh hint" test_zshrc_has_bash_guard
