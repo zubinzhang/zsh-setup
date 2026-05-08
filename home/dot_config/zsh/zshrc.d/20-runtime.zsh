@@ -42,6 +42,23 @@ done
 unset _f
 
 # fzf — fuzzy completion and key bindings (Ctrl+R, Ctrl+T, Alt+C)
+# fzf --zsh was added in 0.48.0; fall back to sourcing integration files for older installs.
 if command -v fzf >/dev/null 2>&1; then
-  eval "$(fzf --zsh)"
+  if fzf --zsh >/dev/null 2>&1; then
+    eval "$(fzf --zsh)"
+  else
+    for _f in \
+      /usr/share/doc/fzf/examples/key-bindings.zsh \
+      /opt/homebrew/opt/fzf/shell/key-bindings.zsh \
+      /usr/local/opt/fzf/shell/key-bindings.zsh; do
+      [[ -f "$_f" ]] && { source "$_f"; break; }
+    done
+    for _f in \
+      /usr/share/doc/fzf/examples/completion.zsh \
+      /opt/homebrew/opt/fzf/shell/completion.zsh \
+      /usr/local/opt/fzf/shell/completion.zsh; do
+      [[ -f "$_f" ]] && { source "$_f"; break; }
+    done
+    unset _f
+  fi
 fi
